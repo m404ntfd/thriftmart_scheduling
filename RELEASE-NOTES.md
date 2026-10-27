@@ -1,5 +1,3 @@
-# Thrift Mart Dispatch 0.12.5
+# Thrift Mart Dispatch 0.13.0
 
-Request-only forms show optional Requested Date & Time, initially blank, and hide end time, employees, and vehicle. Requests can be submitted without those scheduling details or configured vehicles. Scheduling staff supply required scheduling details during approval.
-
-Corrected all state name/abbreviation mappings. New forms default to Mississippi (MS).
+Employee editor includes a comprehensive named permission checklist. Administrators can configure scheduling, requests, cancellation, employee/vehicle management, backups, update and server actions. Server checks enforce protected actions. Administrator accounts retain full access. Contact-tool permissions control application access only; already-known phone numbers/addresses cannot be revoked.

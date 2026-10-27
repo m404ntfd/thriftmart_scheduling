@@ -35,6 +35,29 @@ CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
 
+PERMISSIONS={
+ 'view_schedule':'View schedule, search and filter', 'create_appointments':'Create pickups and deliveries',
+ 'edit_appointments':'Edit appointment details', 'delete_appointments':'Remove appointments',
+ 'update_status':'Set Scheduled / In Progress / Completed', 'cancel_appointments':'Cancel existing appointments',
+ 'submit_requests':'Submit pickup and delivery requests', 'review_requests':'Review and approve requests',
+ 'see_requests':'Show request notification', 'call_contacts':'Show customer call button',
+ 'text_contacts':'Show On Our Way text button', 'navigate':'Show navigation button',
+ 'manage_vehicles':'Add vehicles', 'manage_users':'Add/remove employees and edit permissions',
+ 'reset_passwords':'Reset employee passwords/passcodes', 'change_own_password':'Change own password/passcode',
+ 'view_audit':'View recent changes', 'backup_settings':'Manage backup settings',
+ 'create_backups':'Create backups', 'check_updates':'Check server updates',
+ 'configure_updates':'Change update repository', 'install_updates':'Install server updates',
+ 'view_server':'View server status', 'restart_server':'Restart server'}
+ROUTE_PERMISSIONS={'/api/admin/users':'manage_users','/api/admin/permissions':'manage_users',
+ '/api/user':'manage_users','/api/admin/remove-user':'manage_users','/api/admin/password':'reset_passwords',
+ '/api/account/password':'change_own_password','/api/vehicle':'manage_vehicles',
+ '/api/admin/backup-settings':'backup_settings','/api/admin/backup-now':'create_backups',
+ '/api/admin/backup':'create_backups','/api/admin/status':'view_server','/api/admin/restart':'restart_server',
+ '/api/updates':'check_updates','/api/update-check':'check_updates','/api/update-config':'configure_updates',
+ '/api/update-install':'install_updates','/api/audit':'view_audit'}
+def has_permission(u,key): return bool(u['admin'] or u.get('grants',{}).get(key,False))
+def route_allowed(u,path): return has_permission(u,ROUTE_PERMISSIONS.get(path,''))
+
 def valid_credential(p): return 8<=len(p)<=256 or (len(p)==4 and all(c in '0123456789' for c in p))
 def password(p,s): return hashlib.pbkdf2_hmac('sha256',p.encode(),bytes.fromhex(s),200000).hex()
 def backup():
@@ -126,8 +149,18 @@ class Handler(BaseHTTPRequestHandler):
         if not session or session['expires']<time.time(): raise Problem('Please sign in again.',401)
         with connect() as c:
             permission=c.execute('SELECT * FROM permissions WHERE name=?',(session['name'],)).fetchone()
+        with connect() as c:
+            c.execute('CREATE TABLE IF NOT EXISTS user_grants(name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT)')
+            saved=c.execute('SELECT body FROM user_grants WHERE name=?',(session['name'],)).fetchone()
         session['can_create']=bool(session['admin'] or not permission or permission['can_create'])
         session['see_requests']=bool(session['can_create'] and (permission['see_requests'] if permission else session['admin']))
+        defaults={key:False for key in PERMISSIONS}
+        defaults.update({key:True for key in ('view_schedule','submit_requests','cancel_appointments','call_contacts','text_contacts','navigate','change_own_password')})
+        for key in ('create_appointments','edit_appointments','delete_appointments','update_status','review_requests'): defaults[key]=session['can_create']
+        defaults['see_requests']=session['see_requests']
+        session['grants']=json.loads(saved['body']) if saved else defaults
+        session['can_create']=has_permission(session,'create_appointments')
+        session['see_requests']=bool(has_permission(session,'review_requests') and has_permission(session,'see_requests'))
         return session
     def do_GET(self):
         try:
@@ -140,24 +173,28 @@ class Handler(BaseHTTPRequestHandler):
                     setup=not c.execute('SELECT 1 FROM users').fetchone()
                     try: u=self.user()
                     except Problem: u=None
-                    return self.send({'application':'thrift-mart-dispatch','name':'Thrift Mart Dispatch Server','version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin'],'can_create':u['can_create'],'see_requests':u['see_requests']},'local':self.client_address[0] in ('127.0.0.1','::1')})
+                    return self.send({'application':'thrift-mart-dispatch','name':'Thrift Mart Dispatch Server','version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin'],'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']},'local':self.client_address[0] in ('127.0.0.1','::1')})
                 u=self.user()
-                if self.path=='/api/admin/users':
+                if self.path=='/api/admin/permission-catalog':
                     if not u['admin']: raise Problem('Administrator access required.',403)
+                    return self.send({'permissions':PERMISSIONS,'users':[{'name':r['name'],'grants':json.loads(r['body'])} for r in c.execute('SELECT * FROM user_grants')]})
+                if self.path=='/api/admin/users':
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     return self.send({'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
                 if self.path=='/api/admin/backup-settings':
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     p=DATA/'backup-status.json'
                     return self.send({'config':backup_config(),'status':json.loads(p.read_text()) if p.exists() else None})
                 if self.path=='/api/admin/status':
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     return self.send({'name':'Thrift Mart Dispatch Server','version':updater.current(),'uptime_minutes':int((time.time()-STARTED)/60),'time':dt.datetime.now().isoformat(timespec='seconds'),'jobs':c.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],'vehicles':c.execute('SELECT COUNT(*) FROM vehicles').fetchone()[0],'users':c.execute('SELECT COUNT(*) FROM users').fetchone()[0]})
-                if self.path=='/api/updates' and u['admin']:
+                if self.path=='/api/updates' and route_allowed(u,self.path):
                     last=DATA/'last-update.json'
                     return self.send({'current':updater.current(),'repository':updater.repo(),'launcher':os.environ.get('DISPATCH_LAUNCHER')=='1','last':json.loads(last.read_text()) if last.exists() else None})
                 if self.path=='/api/state':
-                    return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
-                if self.path=='/api/audit' and u['admin']:
+                    if not has_permission(u,'view_schedule'): raise Problem('Schedule access required.',403)
+                    return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
+                if self.path=='/api/audit' and route_allowed(u,self.path):
                     return self.send([dict(r) for r in c.execute('SELECT * FROM audit ORDER BY rowid DESC LIMIT 100')])
                 raise Problem('Not found',404)
         except Problem as e: self.send({'error':e.message},e.status)
@@ -194,6 +231,7 @@ class Handler(BaseHTTPRequestHandler):
                     token=secrets.token_urlsafe(32); SESSIONS[token]={'name':r['name'],'admin':bool(r['admin']),'expires':time.time()+43200}
                     return self.send({'ok':True},cookie=f'session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200')
                 u=self.user()
+                if self.path in ROUTE_PERMISSIONS and not route_allowed(u,self.path): raise Problem('Administrator or delegated permission required.',403)
                 if self.path=='/api/logout':
                     for k,v in list(SESSIONS.items()):
                         if v is u: del SESSIONS[k]
@@ -202,12 +240,16 @@ class Handler(BaseHTTPRequestHandler):
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     target=c.execute('SELECT * FROM users WHERE name=?',(str(d.get('name','')),)).fetchone()
                     if not target: raise Problem('User not found.',404)
+                    if 'grants' in d:
+                        if not isinstance(d['grants'],dict) or any(k not in PERMISSIONS or not isinstance(v,bool) for k,v in d['grants'].items()): raise Problem('Invalid permission list.')
+                        grants={k:bool(d['grants'].get(k,False)) for k in PERMISSIONS}
+                        c.execute('INSERT OR REPLACE INTO user_grants VALUES(?,?)',(target['name'],json.dumps(grants)))
                     create=bool(target['admin'] or d.get('can_create') is True)
                     see=bool(create and d.get('see_requests') is True)
                     c.execute('INSERT OR REPLACE INTO permissions VALUES(?,?,?)',(target['name'],int(create),int(see)))
                     return self.send({'ok':True})
                 if self.path in ('/api/admin/password','/api/account/password'):
-                    if self.path=='/api/admin/password' and not u['admin']: raise Problem('Administrator access required.',403)
+                    if self.path=='/api/admin/password' and not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     name=u['name'] if self.path=='/api/account/password' else str(d.get('name','')).strip()
                     if self.path=='/api/account/password':
                         account=c.execute('SELECT * FROM users WHERE name=?',(u['name'],)).fetchone()
@@ -225,7 +267,7 @@ class Handler(BaseHTTPRequestHandler):
                         if session['name']==target['name']: del SESSIONS[token]
                     return self.send({'ok':True,'signed_out':u['name']==target['name']})
                 elif self.path in ('/api/admin/backup-settings','/api/admin/backup-now'):
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     if self.path=='/api/admin/backup-settings':
                         folder=str(d.get('folder','')).strip()
                         enabled=d.get('enabled') is True
@@ -239,7 +281,7 @@ class Handler(BaseHTTPRequestHandler):
                         try: return self.send({'ok':True,'backup':complete_backup()})
                         except Exception as e: raise Problem('Backup failed: '+str(e))
                 elif self.path in ('/api/admin/backup','/api/admin/restart'):
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     if self.path=='/api/admin/backup':
                         folder=DATA/'manual-backups'; folder.mkdir(exist_ok=True)
                         target=folder/(dt.datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+secrets.token_hex(3)+'.db')
@@ -251,7 +293,7 @@ class Handler(BaseHTTPRequestHandler):
                     threading.Thread(target=self.server.shutdown,daemon=True).start()
                     return
                 elif self.path.startswith('/api/update-'):
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     try:
                         if self.path=='/api/update-config': updater.configure(str(d.get('repository','')).strip())
                         elif self.path=='/api/update-check':
@@ -266,10 +308,10 @@ class Handler(BaseHTTPRequestHandler):
                         else: raise Problem('Not found',404)
                     except ValueError as e: raise Problem(str(e))
                 elif self.path=='/api/user':
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     self.add_user(c,str(d.get('name','')).strip(),str(d.get('password','')),False)
                 elif self.path=='/api/admin/remove-user':
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     target=c.execute('SELECT name,admin FROM users WHERE name=?',(str(d.get('name','')).strip(),)).fetchone()
                     if not target: raise Problem('Employee not found.',404)
                     if target['admin']: raise Problem('Administrator accounts cannot be removed here.',403)
@@ -278,7 +320,7 @@ class Handler(BaseHTTPRequestHandler):
                         if SESSIONS[token]['name'].casefold()==target['name'].casefold(): del SESSIONS[token]
                     c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Removed employee: '+target['name'],''))
                 elif self.path=='/api/vehicle':
-                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if not route_allowed(u,self.path): raise Problem('Administrator access required.',403)
                     name=str(d.get('name','')).strip()
                     if not 1<=len(name)<=80: raise Problem('Enter a vehicle name.')
                     c.execute('INSERT INTO vehicles VALUES(?)',(name,))
@@ -289,8 +331,10 @@ class Handler(BaseHTTPRequestHandler):
                     status=d.get('status')
                     j=json.loads(old['body'])
                     if not u['can_create']:
+                        if status=='Canceled' and not has_permission(u,'cancel_appointments'): raise Problem('Cancellation permission required.',403)
                         if status not in ('Requested','Canceled'): raise Problem('Request-only users may only request or cancel appointments.',403)
                         if status=='Requested' and (not j.get('request') or j.get('requestedBy')!=u['name']): raise Problem('Only your pending requests can have Requested status.',403)
+                    elif not has_permission(u,'cancel_appointments' if status=='Canceled' else 'update_status'): raise Problem('Status permission required.',403)
                     elif status not in ('Scheduled','In Route / In Progress','Completed','Canceled'): raise Problem('Choose a valid status.')
                     if status not in ('Completed','Canceled','Requested'):
 
@@ -303,10 +347,12 @@ class Handler(BaseHTTPRequestHandler):
                     c.execute('UPDATE jobs SET revision=?,body=? WHERE id=?',(old['revision']+1,json.dumps(j),jid))
                     c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Status: '+previous+' → '+status+' · '+j['customer'],jid))
                 elif self.path in ('/api/save','/api/delete'):
-                    if d.get('id') and not u['can_create']: raise Problem('Scheduling permission required.',403)
+                    if not d.get('id') and not has_permission(u,'create_appointments') and not has_permission(u,'submit_requests'): raise Problem('Request permission required.',403)
+                    if d.get('id') and not has_permission(u,'delete_appointments' if self.path=='/api/delete' else 'edit_appointments'): raise Problem('Edit permission required.',403)
                     jid=str(d.get('id') or secrets.token_hex(12))
                     old=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
                     if d.get('id') and (not old or d.get('revision')!=old['revision']): raise Problem('Someone changed this job. Close this form, refresh, and try again.',409)
+                    if old and json.loads(old['body']).get('request') and self.path=='/api/save' and not has_permission(u,'review_requests'): raise Problem('Request approval permission required.',403)
                     if self.path=='/api/delete':
                         if not old: raise Problem('Job not found.',404)
                         c.execute('DELETE FROM jobs WHERE id=?',(jid,)); action='Removed: '+json.loads(old['body'])['customer']
@@ -339,7 +385,7 @@ class Handler(BaseHTTPRequestHandler):
                                 try: dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M')
                                 except ValueError: raise Problem('Choose a valid requested date and time.')
                             j['end']='';j['vehicle']='';j['staff']='';j['staffNames']=[]
-                        pending=not u['can_create']
+                        pending=not u['can_create'] and not old
                         if pending:
                             if j['status'] not in ('Requested','Canceled'): raise Problem('Request-only users may only request or cancel appointments.',403)
                             j['request']=True;j['requestedBy']=u['name']
@@ -349,6 +395,7 @@ class Handler(BaseHTTPRequestHandler):
                                 if not other.get('request') and other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
                                     raise Problem('This vehicle is already booked during that time. Choose another time or vehicle.',409)
                         previous_job=json.loads(old['body']) if old else {}
+                        if old and previous_job.get('status')!=j['status'] and not has_permission(u,'cancel_appointments' if j['status']=='Canceled' else 'update_status'): raise Problem('Status permission required.',403)
                         if not old or previous_job.get('status')!=j['status']:
                             j['statusUpdatedBy']=u['name'];j['statusUpdatedAt']=dt.datetime.now().astimezone().isoformat(timespec='seconds')
                         else:

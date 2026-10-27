@@ -125,9 +125,9 @@ class Handler(BaseHTTPRequestHandler):
         return session
     def do_GET(self):
         try:
-            if self.path in ('/','/app.js','/style.css'):
-                filename={'/':'index.html','/app.js':'app.js','/style.css':'style.css'}[self.path]
-                kind={'/':'text/html; charset=utf-8','/app.js':'text/javascript','/style.css':'text/css'}[self.path]
+            if self.path in ('/','/mobile','/mobile/','/app.js','/style.css'):
+                filename={'/':'index.html','/mobile':'index.html','/mobile/':'index.html','/app.js':'app.js','/style.css':'style.css'}[self.path]
+                kind={'/':'text/html; charset=utf-8','/mobile':'text/html; charset=utf-8','/mobile/':'text/html; charset=utf-8','/app.js':'text/javascript','/style.css':'text/css'}[self.path]
                 return self.send((ROOT/'static'/filename).read_bytes(),kind=kind)
             with LOCK, connect() as c:
                 if self.path=='/api/session':

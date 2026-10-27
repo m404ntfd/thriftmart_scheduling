@@ -1,0 +1,91 @@
+"""Real browser tests of the shared phone schedule (run with Playwright installed)."""
+import os, socket, subprocess, sys, tempfile, time, urllib.request
+from pathlib import Path
+from playwright.sync_api import sync_playwright, expect
+
+
+def run():
+    with tempfile.TemporaryDirectory() as data, socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        port = sock.getsockname()[1]
+        sock.close()
+        base = f'http://127.0.0.1:{port}'
+        proc = subprocess.Popen([sys.executable, 'server.py'], env={**os.environ, 'DISPATCH_DATA': data, 'DISPATCH_PORT': str(port)}, stdout=subprocess.DEVNULL)
+        try:
+            for _ in range(100):
+                try:
+                    urllib.request.urlopen(base + '/api/session').close()
+                    break
+                except OSError:
+                    time.sleep(.1)
+            with sync_playwright() as p:
+                browser = p.chromium.launch()
+                phone = browser.new_context(viewport={'width':375,'height':812}, is_mobile=True, has_touch=True)
+                page = phone.new_page()
+                errors = []
+                page.on('pageerror', lambda e: errors.append(str(e)))
+                page.goto(base + '/mobile/')
+                page.locator('#login [name=name]').fill('Manager')
+                page.locator('#login [name=password]').fill('testpassword')
+                page.locator('#login button').click()
+                page.locator('#vehicleForm input').fill('White truck')
+                page.locator('#vehicleForm button').click()
+                expect(page.locator('#vehicles')).to_contain_text('White truck')
+                page.locator('#userForm [name=name]').fill('Alex')
+                page.locator('#userForm [name=password]').fill('testpassword')
+                page.locator('#userForm button').click()
+                expect(page.locator('#users')).to_contain_text('Alex')
+                page.locator('#dayTab').click()
+                page.locator('#addDelivery').click()
+                expect(page.locator('#jobForm [name=type]')).to_have_value('Delivery')
+                for name, value in {'customer':'Phone customer','phone':'555-0100','address':'123 Main Street','items':'Sofa and two chairs'}.items():
+                    page.locator(f'#jobForm [name={name}]').fill(value)
+                page.locator('#save').click()
+                expect(page.locator('#jobs')).to_contain_text('Phone customer')
+                expect(page.locator('#jobs a[href^="tel:"]')).to_have_attribute('href','tel:5550100')
+                expect(page.locator('#jobs a[href^="https:"]')).to_have_attribute('href','https://www.google.com/maps/search/?api=1&query=123%20Main%20Street')
+                for width in [320,375,430,1280]:
+                    page.set_viewport_size({'width':width,'height':812})
+                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Overflow at {width}px'
+                page.set_viewport_size({'width':375,'height':812})
+                page.locator('#statusFilter').select_option('Completed')
+                expect(page.locator('#jobs .job')).to_have_count(0)
+                page.locator('#statusFilter').select_option('')
+                page.locator('#monthTab').click()
+                expect(page.locator('#month')).to_be_visible()
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                page.locator('#dayTab').click()
+                # A separately signed-in employee sees the same data and can edit it.
+                other = browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
+                employee = other.new_page()
+                employee.goto(base + '/mobile')
+                employee.locator('#login [name=name]').fill('Alex')
+                employee.locator('#login [name=password]').fill('testpassword')
+                employee.locator('#login button').click()
+                expect(employee.locator('#jobs')).to_contain_text('Phone customer')
+                expect(employee.locator('#settingsTab')).to_be_hidden()
+                employee.locator('[data-edit]').click()
+                employee.locator('#jobForm [name=notes]').fill('Call before arrival')
+                employee.locator('#save').click()
+                expect(employee.locator('#editor')).not_to_be_visible()
+                page.locator('#refresh').click()
+                expect(page.locator('#jobs')).to_contain_text('Call before arrival')
+                phone.set_offline(True)
+                page.locator('#refresh').click()
+                expect(page.locator('#offline')).to_be_visible()
+                phone.set_offline(False)
+                page.locator('#retry').click()
+                expect(page.locator('#offline')).to_be_hidden()
+                page.locator('[data-edit]').click()
+                page.on('dialog', lambda dialog: dialog.accept())
+                page.locator('#remove').click()
+                expect(page.locator('#jobs .job')).to_have_count(0)
+                assert not errors, errors
+                browser.close()
+        finally:
+            proc.terminate()
+            proc.wait(timeout=10)
+    print('Phone CRUD, sharing, links, filters, layouts, roles and reconnection passed.')
+
+if __name__ == '__main__':
+    run()

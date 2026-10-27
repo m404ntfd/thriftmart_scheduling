@@ -65,3 +65,9 @@ Use Thrift Mart Dispatch Server Console from the Start menu or a startup .bat.
 The real command window uses the truck icon. Minimize sends it to the tray;
 double-click the tray icon to restore. Its X is disabled; use tray Exit server.
 The normal graphical Server shortcut is still available as an alternative.
+
+
+PHONE / MOBILE SCHEDULE
+After updating the running server to 0.8.0 or later, connect phones to the same staff Wi-Fi and open http://SERVER-IP:8080/mobile (use the network address shown in the server window). Sign in with an existing employee account. Create the first administrator locally on the server if needed, then add vehicles and employee accounts in Settings.
+The phone view shares the same live schedule: add Pickup or Delivery, choose date/time and vehicle, enter customer/address/items, edit or remove appointments, search, and filter by vehicle/status. Call and map buttons open the phone's dialer/maps website. Maps require internet access. Updates refresh every 10 seconds and when returning to the browser. Unsaved form entries are not shared. If connection is lost, a warning appears; no offline saving is supported.
+Bookmark /mobile or use the phone browser's Add to Home Screen option. No phone app or Remote Manager installation is required. The Windows server must stay awake and running. Use staff Wi-Fi with local device access (guest networks may block it). Allow the server's TCP port through Windows Firewall on the private store network if needed; do not expose it to the public internet. This is for local-network access; road access is not configured.

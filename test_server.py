@@ -18,6 +18,11 @@ class Tests(unittest.TestCase):
   try:
    with (client or cls.client).open(req) as r:return r.status,json.load(r)
   except urllib.error.HTTPError as e:return e.code,json.load(e)
+ def test_mobile_routes(self):
+  for path in ('/mobile','/mobile/'):
+   with urllib.request.urlopen(f'http://127.0.0.1:{self.port}'+path) as r:
+    self.assertEqual(r.status,200)
+    self.assertIn(b'id="addPickup"',r.read())
  def test_workflow(self):
   self.assertTrue(self.call('session')[1]['setup'])
   self.assertEqual(self.call('local/stop',{'token':'invalid'})[0],403)

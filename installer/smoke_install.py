@@ -1,5 +1,5 @@
 """Verify an installed server runs with bundled Python and the manager connects."""
-import os,sys,subprocess,tempfile,socket,time
+import os,sys,subprocess,tempfile,socket,time,json
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'remote'))
 from client import Client
@@ -34,6 +34,25 @@ with tempfile.TemporaryDirectory() as data:
   except Exception:pass
   else:raise AssertionError('Tray Exit left the server running')
   print('Truck-icon GUI, tray minimize/restore, continued access and graceful exit passed.')
+ finally:
+  if p.poll() is None:
+   subprocess.run(['taskkill','/PID',str(p.pid),'/T','/F'],capture_output=True);p.wait()
+
+# Use the classic console host so Windows Terminal tabs do not own the window.
+with tempfile.TemporaryDirectory() as data:
+ with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
+ command=[str(Path(os.environ['SystemRoot'])/'System32/conhost.exe'),str(root/'Thrift Mart Dispatch Server Console.exe'),'--console','--smoke-test']
+ p=subprocess.Popen(command,cwd=root,env={**os.environ,'DISPATCH_DATA':data,'DISPATCH_PORT':str(port)})
+ try:
+  assert p.wait(timeout=75)==0,'Console tray smoke test failed'
+  # Log proves the child actually ran; conhost must not silently fail to start it.
+  assert (Path(data)/'server-console.log').exists(),'Console did not start server'
+  assert json.loads((Path(data)/'tray-smoke.json').read_text())=={'passed':True,'console':True},'Console assertions were not completed'
+  c=Client(f'127.0.0.1:{port}')
+  try:c.probe()
+  except Exception:pass
+  else:raise AssertionError('Console tray Exit left server running')
+  print('Command window truck icons, actual minimize-to-tray, restore and graceful exit passed.')
  finally:
   if p.poll() is None:
    subprocess.run(['taskkill','/PID',str(p.pid),'/T','/F'],capture_output=True);p.wait()

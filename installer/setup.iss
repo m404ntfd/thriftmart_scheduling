@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.6.1"
+#define AppVersion "0.7.0"
 #endif
 [Setup]
 AppId={{7412358D-0556-4978-AEA4-8297976D4992}
@@ -31,6 +31,7 @@ Name: "remote"; Description: "Thrift Mart Dispatch Remote Manager"; Types: remot
 Name: "desktop"; Description: "Create desktop shortcuts"; Flags: unchecked
 Name: "startup"; Description: "Start the server when I sign in to Windows"; Components: server; Flags: unchecked
 [Files]
+Source: "..\dist\Thrift Mart Dispatch Server Console.exe"; DestDir: "{app}"; Components: server; Flags: ignoreversion
 Source: "..\dist\Thrift Mart Dispatch Server.exe"; DestDir: "{app}"; Components: server; Flags: ignoreversion
 Source: "..\assets\dispatch.ico"; DestDir: "{app}\assets"; Components: server; Flags: ignoreversion
 Source: "..\server.py"; DestDir: "{app}"; Components: server; Flags: ignoreversion
@@ -46,6 +47,7 @@ Source: "..\runtime\*"; DestDir: "{app}\runtime"; Components: server; Flags: ign
 Source: "..\dist\Thrift Mart Dispatch Remote Manager.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\remote\README.txt"; DestDir: "{app}"; DestName: "Remote-Manager-README.txt"; Flags: ignoreversion
 [Icons]
+Name: "{group}\Thrift Mart Dispatch Server Console"; Filename: "{sys}\conhost.exe"; Parameters: """{app}\Thrift Mart Dispatch Server Console.exe"" --console"; WorkingDir: "{app}"; IconFilename: "{app}\assets\dispatch.ico"; Components: server
 Name: "{group}\Manage or Update Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Parameters: "--local-server"; Components: server
 Name: "{group}\Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Server.exe"; WorkingDir: "{app}"; Components: server
 Name: "{group}\Thrift Mart Dispatch Remote Manager"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Components: remote

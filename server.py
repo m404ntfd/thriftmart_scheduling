@@ -309,7 +309,7 @@ if __name__=='__main__':
     print(f'On this computer: http://localhost:{port}')
     for address in sorted(set(socket.gethostbyname_ex(socket.gethostname())[2])):
         if not address.startswith('127.'): print(f'On store Wi-Fi: http://{address}:{port}')
-    print('Keep this window open. Press Ctrl+C to stop.')
+    print('Managed by the truck tray icon. Minimize to tray; use Exit server to stop.' if os.environ.get('DISPATCH_CONTROL_TOKEN') else 'Keep this window open. Press Ctrl+C to stop.')
     http=ThreadingHTTPServer(('0.0.0.0',port),Handler)
     http.serve_forever()
     http.server_close()

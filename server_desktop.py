@@ -17,10 +17,16 @@ def request(path,data=None):
     with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req,timeout=4) as response:return json.load(response)
 
 class ServerWindow:
-    def __init__(self,root,smoke=False):
-        self.root=root;self.smoke=smoke;self.process=None;self.log=None;self.stopping=False;self.tray_ready=False;self.queue=queue.Queue();self.token=secrets.token_urlsafe(48);self.deadline=time.time()+45;self.smoke_done=False;self.notice=None
+    def __init__(self,root,smoke=False,console=False):
+        self.root=root;self.smoke=smoke;self.console=None;self.pump=None;self.smoke_phase=0;self.process=None;self.log=None;self.stopping=False;self.tray_ready=False;self.queue=queue.Queue();self.token=secrets.token_urlsafe(48);self.deadline=time.time()+45;self.smoke_done=False;self.notice=None
         DATA.mkdir(parents=True,exist_ok=True)
         root.title(NAME);root.geometry('700x510');root.minsize(660,480);root.iconbitmap(str(ASSETS/'dispatch.ico'))
+        if console:
+            from console_control import ConsoleWindow
+            self.console=ConsoleWindow(ASSETS/'dispatch.ico');root.withdraw()
+            print('Thrift Mart Dispatch Server — console mode',flush=True)
+            print('Minimize sends this command window to the truck icon in the system tray.',flush=True)
+            print('Double-click the truck to reopen. To stop: right-click truck > Exit server.',flush=True)
         root.protocol('WM_DELETE_WINDOW',self.hide);root.bind('<Unmap>',self.on_minimize)
         style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=10);style.configure('TLabel',font=('Segoe UI',10))
         f=ttk.Frame(root,padding=24);f.pack(fill='both',expand=True)
@@ -40,7 +46,7 @@ class ServerWindow:
         ttk.Button(bottom,text='Open server log',command=self.open_log).pack(side='left')
         self.exit_button=ttk.Button(bottom,text='Exit server',command=self.ask_exit);self.exit_button.pack(side='right')
         self.icon=pystray.Icon('ThriftMartDispatch',Image.open(ASSETS/'dispatch.png'),NAME,pystray.Menu(
-            pystray.MenuItem('Open server window',lambda icon,item:self.queue.put(('show',None)),default=True),
+            pystray.MenuItem('Open server console' if self.console else 'Open server window',lambda icon,item:self.queue.put(('show',None)),default=True),
             pystray.MenuItem('Open schedule',lambda icon,item:self.queue.put(('schedule',None))),
             pystray.MenuItem('Manage / update server',lambda icon,item:self.queue.put(('manage',None))),
             pystray.Menu.SEPARATOR,
@@ -61,15 +67,25 @@ class ServerWindow:
             env={**os.environ,'DISPATCH_CONTROL_TOKEN':self.token,'PYTHONUNBUFFERED':'1'}
             # Do not let the frozen host's DLL directory override the external runtime.
             ctypes.windll.kernel32.SetDllDirectoryW(None)
-            self.process=subprocess.Popen([str(python),str(ROOT/'launcher.py')],cwd=ROOT,env=env,stdout=self.log,stderr=self.log,creationflags=subprocess.CREATE_NO_WINDOW)
+            self.process=subprocess.Popen([str(python),str(ROOT/'launcher.py')],cwd=ROOT,env=env,stdout=subprocess.PIPE if self.console else self.log,stderr=subprocess.STDOUT if self.console else self.log,creationflags=subprocess.CREATE_NO_WINDOW)
+            if self.console:
+                def pump():
+                    for line in iter(self.process.stdout.readline,b''):
+                        self.log.write(line)
+                        try:sys.stdout.write(line.decode('utf-8',errors='replace'));sys.stdout.flush()
+                        except (OSError,UnicodeError):pass
+                self.pump=threading.Thread(target=pump,daemon=True);self.pump.start()
         except Exception as e:self.status.set('Unable to start: '+str(e))
     def on_minimize(self,event):
         if event.widget is self.root and self.root.state()=='iconic':self.root.after(0,self.hide)
     def hide(self):
         if not self.tray_ready:
-            self.root.deiconify();self.status.set('Tray is not ready. Keep this window open for now.');return
+            self.show();self.status.set('Tray is not ready. Keep this window open for now.');return
         self.root.withdraw()
-    def show(self):self.root.deiconify();self.root.lift();self.root.focus_force()
+        if self.console:self.console.hide()
+    def show(self):
+        if self.console:self.console.show()
+        else:self.root.deiconify();self.root.lift();self.root.focus_force()
     def open_schedule(self):webbrowser.open(URL)
     def manage(self):
         try:subprocess.Popen([str(ROOT/'Thrift Mart Dispatch Remote Manager.exe'),'--local-server'],env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'})
@@ -88,10 +104,14 @@ class ServerWindow:
             except Exception as e:self.queue.put(('stop_error',str(e)))
         threading.Thread(target=worker,daemon=True).start()
     def finish(self):
+        if self.smoke and self.smoke_done:
+            (DATA/'tray-smoke.json').write_text(json.dumps({'passed':True,'console':bool(self.console)}))
         self.icon.stop()
+        if self.pump:self.pump.join(timeout=2)
         if self.log:self.log.close()
         self.root.destroy()
     def poll(self):
+        if self.console and self.tray_ready and self.console.minimized():self.hide()
         try:
             while True:
                 kind,value=self.queue.get_nowait()
@@ -112,13 +132,23 @@ class ServerWindow:
             try:
                 r=request('session')
                 if r.get('application')=='thrift-mart-dispatch' and self.tray_ready:
-                    self.root.update_idletasks()
-                    assert self.exit_button.winfo_rooty()+self.exit_button.winfo_height() <= self.root.winfo_rooty()+self.root.winfo_height()
-                    self.hide();self.root.update_idletasks()
-                    assert self.root.state()=='withdrawn'
-                    assert request('session')['application']=='thrift-mart-dispatch'
-                    self.show();self.root.update_idletasks();assert self.root.state()=='normal'
-                    self.smoke_done=True;self.stop()
+                    if self.console:
+                        assert self.console.verify_icons()
+                        if self.smoke_phase==0:
+                            self.console.show();self.console.minimize();self.smoke_phase=1
+                        else:
+                            assert not self.console.visible()
+                            assert request('session')['application']=='thrift-mart-dispatch'
+                            self.show();assert self.console.visible()
+                            self.smoke_done=True;self.stop()
+                    else:
+                        self.root.update_idletasks()
+                        assert self.exit_button.winfo_rooty()+self.exit_button.winfo_height() <= self.root.winfo_rooty()+self.root.winfo_height()
+                        self.hide();self.root.update_idletasks()
+                        assert self.root.state()=='withdrawn'
+                        assert request('session')['application']=='thrift-mart-dispatch'
+                        self.show();self.root.update_idletasks();assert self.root.state()=='normal'
+                        self.smoke_done=True;self.stop()
             except Exception:
                 if time.time()>self.deadline:os._exit(2)
         self.root.after(300,self.poll)
@@ -128,5 +158,5 @@ def main():
     mutex=kernel.CreateMutexW(None,False,'ThriftMartDispatchTray')
     if kernel.GetLastError()==183:
         root=tk.Tk();root.withdraw();messagebox.showinfo(NAME,'The server application is already open. Double-click its white truck icon in the system tray.');root.destroy();return
-    root=tk.Tk();ServerWindow(root,smoke='--smoke-test' in sys.argv);root.mainloop()
+    root=tk.Tk();ServerWindow(root,smoke='--smoke-test' in sys.argv,console='--console' in sys.argv);root.mainloop()
 if __name__=='__main__':main()

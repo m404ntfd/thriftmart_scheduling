@@ -51,3 +51,9 @@ Use the unified installer to update Remote Manager itself; the server-update act
 The white box-truck icon identifies the server on the desktop/taskbar and in the tray. Minimize, X, or **Minimize to tray** hides its window without stopping scheduling. Double-click the tray icon to reopen; right-click for schedule, management/update controls, or **Exit server**. Exit asks before stopping the server. If the icon is hidden, expand the taskbar's hidden icons.
 
 Install the full 0.6 installer once to add the tray executable. The code-only updater does not replace desktop executables. Logs are under `data/server-console.log`. Tray operation still requires the Windows user to remain signed in and the PC to stay awake.
+
+## Command-window tray support (0.7)
+
+Use **Thrift Mart Dispatch Server Console** in the Start menu, or the existing startup batch file. This opens a dedicated command window with the white truck icon. Minimizing it sends it to the system tray without stopping the server; double-click the tray icon to restore it. The console X is disabled; use the tray's **Exit server** command for safe shutdown.
+
+The graphical **Thrift Mart Dispatch Server** shortcut remains an alternative. Only one server mode can run at a time. The Console shortcut uses classic Windows Console Host without changing the system-wide Windows Terminal preference. A raw developer command such as `python server.py` does not use the tray host.

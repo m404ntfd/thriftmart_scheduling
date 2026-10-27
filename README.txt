@@ -1,6 +1,6 @@
-THRIFT MART DISPATCH SERVER — 0.6.1
+THRIFT MART DISPATCH SERVER — 0.7.0
 
-Use Thrift-Mart-Dispatch-Setup-v0.6.1.exe for a normal installation. Choose Server,
+Use Thrift-Mart-Dispatch-Setup-v0.7.0.exe for a normal installation. Choose Server,
 Remote Manager or Both. The installer includes the required Python runtime.
 Open Thrift Mart Dispatch Server from the Start menu. Minimize or click X to keep it running in the system tray.
 First setup: http://localhost:8080 on the server PC. Create the administrator,
@@ -59,3 +59,9 @@ Double-click the white truck tray icon to show the server window. Right-click fo
 Open schedule, Manage / update server, and Exit server. X only hides the window.
 Exit server stops scheduling after confirmation. The installer must be run once
 to install this desktop host; code-only updates do not add executable files.
+
+COMMAND WINDOW
+Use Thrift Mart Dispatch Server Console from the Start menu or a startup .bat.
+The real command window uses the truck icon. Minimize sends it to the tray;
+double-click the tray icon to restore. Its X is disabled; use tray Exit server.
+The normal graphical Server shortcut is still available as an alternative.

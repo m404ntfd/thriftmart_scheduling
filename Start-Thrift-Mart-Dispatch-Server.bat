@@ -1,5 +1,9 @@
 @echo off
 cd /d "%~dp0"
+if exist "Thrift Mart Dispatch Server Console.exe" (
+ start "" "%SystemRoot%\System32\conhost.exe" "%~dp0Thrift Mart Dispatch Server Console.exe" --console
+ exit /b 0
+)
 if exist "Thrift Mart Dispatch Server.exe" (
  start "" "Thrift Mart Dispatch Server.exe"
  exit /b 0

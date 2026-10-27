@@ -1,12 +1,11 @@
-# Thrift Mart Dispatch 0.6.1
+# Thrift Mart Dispatch 0.7.0
 
-- Added a native **Thrift Mart Dispatch Server** desktop window with a white box-truck icon.
-- The server shortcut, application window, taskbar and system tray use the truck icon.
-- Minimize, the window's X button, and **Minimize to tray** hide the window while keeping the server running.
-- Double-click the truck tray icon to reopen. Right-click for the server window, schedule, administration/update controls, or **Exit server**.
-- Exit confirms and shuts down the server safely. Closing Remote Manager continues to leave the server running.
-- Server console output is captured in `data/server-console.log`, accessible through **Open server log**.
+- Added **Thrift Mart Dispatch Server Console**: the actual command window has the white box-truck icon in its title bar/taskbar and a matching system-tray icon.
+- Minimizing this command window hides it in the tray while the schedule remains available. Double-click the truck icon to restore the command window.
+- Right-click the tray icon for the schedule, administrator/update controls, or **Exit server**.
+- Older startup batch files now launch this console/tray version when installed. The graphical Server shortcut remains available as an alternative; only one server instance runs at a time.
+- The console title-bar X is disabled to avoid accidental shutdown. Use **Exit server** in the tray menu to stop it safely.
 
-Run **Thrift-Mart-Dispatch-Setup-v0.6.1.exe** once on the server computer to install the new desktop/tray host and shortcuts. Stop the previous server before upgrading; preserve the existing data folder. A server-code-only update cannot install the new desktop executable.
+Run **Thrift-Mart-Dispatch-Setup-v0.7.0.exe**, selecting Server or Both. Exit the current server first and retain its data folder. After installation, use **Thrift Mart Dispatch Server Console** from the Start menu or the existing startup batch file.
 
-If Windows hides the tray icon, look under the taskbar's hidden-icons arrow. Keeping the server in the tray does not prevent Windows from sleeping; keep the server PC awake. Runtime is bundled in the unified installer.
+The Console shortcut uses Windows Console Host so its icon and minimize behavior can be controlled independently of Windows Terminal tabs. No global Windows Terminal settings are changed. This update requires the full installer; code-only updates do not add the console executable.

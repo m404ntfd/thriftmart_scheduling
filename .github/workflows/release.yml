@@ -33,6 +33,7 @@ jobs:
       - run: python assets/create_icon.py
       - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name "Thrift Mart Dispatch Remote Manager" remote/remote_manager.py
       - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --icon assets/dispatch.ico --add-data "assets/dispatch.ico:assets" --add-data "assets/dispatch.png:assets" --hidden-import pystray._win32 --name "Thrift Mart Dispatch Server" server_desktop.py
+      - run: python -m PyInstaller --noconfirm --clean --onefile --console --icon assets/dispatch.ico --add-data "assets/dispatch.ico:assets" --add-data "assets/dispatch.png:assets" --hidden-import pystray._win32 --name "Thrift Mart Dispatch Server Console" server_desktop.py
       - name: Verify Remote Manager and restore utility startup
         shell: pwsh
         run: |

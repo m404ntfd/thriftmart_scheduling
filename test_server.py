@@ -95,8 +95,8 @@ class Tests(unittest.TestCase):
   self.assertEqual(len(requested['requests']),1)
   pending=requested['requests'][0]
   self.assertEqual(self.call('save',pending,requester)[0],403)
-  self.assertEqual(self.call('status',{**pending,'status':'Scheduled'},requester)[0],403)
-  self.assertEqual(self.call('save',{**pending,'status':'Scheduled'})[0],200)
+  self.assertEqual(self.call('status',{**pending,'status':'Scheduled','vehicle':'Truck 1','end':'2026-12-01T10:00'},requester)[0],403)
+  self.assertEqual(self.call('save',{**pending,'status':'Scheduled','vehicle':'Truck 1','end':'2026-12-01T10:00'})[0],200)
   self.assertEqual(len(self.call('state')[1]['requests']),0)
   approved=next(j for j in self.call('state')[1]['jobs'] if j['id']==pending['id'])
   self.assertEqual(self.call('status',{**approved,'status':'Canceled'},requester)[0],200)

@@ -318,7 +318,7 @@ class Handler(BaseHTTPRequestHandler):
                             if any(not j[k] for k in ('street','city','state','zip')): raise Problem('Enter street address, city, state and ZIP code.')
                             j['address']=j['street']+'\n'+j['city']+', '+j['state']+' '+j['zip']
                         if any(len(v)>5000 for v in j.values()): raise Problem('A field is too long.')
-                        if any(not j[k] for k in ('customer','phone','address','items','vehicle','start','end')): raise Problem('Complete the required fields.')
+                        if any(not j[k] for k in (('customer','phone','address','items','vehicle','start','end') if u['can_create'] else ('customer','phone','address','items'))): raise Problem('Complete the required fields.')
                         if 'staffNames' in d:
                             names=d['staffNames']
                             if not isinstance(names,list) or len(names)>100 or any(not isinstance(n,str) or len(n)>5000 for n in names): raise Problem('Choose valid employees.')
@@ -328,11 +328,17 @@ class Handler(BaseHTTPRequestHandler):
                             if any(n not in allowed for n in names): raise Problem('An employee was removed. Reopen the appointment and select current employees.')
                             j['staffNames']=list(dict.fromkeys(names));j['staff']=', '.join(j['staffNames'])
                         if j['type'] not in ('Pickup','Delivery') or j['status'] not in ('Requested','Scheduled','Confirmed','In Route / In Progress','Completed','Canceled'): raise Problem('Invalid type or status.')
-                        try:
-                            start=dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M'); end=dt.datetime.strptime(j['end'],'%Y-%m-%dT%H:%M')
-                        except ValueError: raise Problem('Choose a valid date and time.')
-                        if end<=start: raise Problem('End time must be after start time.')
-                        if not c.execute('SELECT 1 FROM vehicles WHERE name=?',(j['vehicle'],)).fetchone(): raise Problem('Choose an existing vehicle.')
+                        if u['can_create']:
+                            try:
+                                start=dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M'); end=dt.datetime.strptime(j['end'],'%Y-%m-%dT%H:%M')
+                            except ValueError: raise Problem('Choose a valid date and time.')
+                            if end<=start: raise Problem('End time must be after start time.')
+                            if not c.execute('SELECT 1 FROM vehicles WHERE name=?',(j['vehicle'],)).fetchone(): raise Problem('Choose an existing vehicle.')
+                        else:
+                            if j['start']:
+                                try: dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M')
+                                except ValueError: raise Problem('Choose a valid requested date and time.')
+                            j['end']='';j['vehicle']='';j['staff']='';j['staffNames']=[]
                         pending=not u['can_create']
                         if pending:
                             if j['status'] not in ('Requested','Canceled'): raise Problem('Request-only users may only request or cancel appointments.',403)

@@ -36,6 +36,9 @@ def run():
                 page.locator('#userForm button').click()
                 expect(page.locator('#users')).to_contain_text('Alex')
                 page.locator('#dayTab').click()
+                assert page.evaluate("weekStart('2026-10-31')") == '2026-10-25'
+                assert page.evaluate("weekStart('2026-11-01')") == '2026-11-01'
+                assert page.evaluate("shiftDate(weekStart('2026-12-31'),7)") == '2027-01-03'
                 page.locator('#addDelivery').click()
                 expect(page.locator('#jobForm [name=type]')).to_have_value('Delivery')
                 for name, value in {'customer':'Phone customer','phone':'555-0100','street':'123 Main Street','city':'Springfield','state':'IL','zip':'62701','items':'Sofa and two chairs'}.items():
@@ -56,8 +59,14 @@ def run():
                 page.locator('#statusFilter').select_option('Completed')
                 expect(page.locator('#jobs .job')).to_have_count(0)
                 page.locator('#statusFilter').select_option('')
-                page.locator('#monthTab').click()
-                expect(page.locator('#month')).to_be_visible()
+                page.locator('#weekTab').click()
+                expect(page.locator('.weekDay')).to_have_count(7)
+                expect(page.locator('.weekDay h2').first).to_contain_text('Sunday')
+                expect(page.locator('.weekDay h2').last).to_contain_text('Saturday')
+                expect(page.locator('#jobs')).to_contain_text('Phone customer')
+                page.locator('#nextWeekTab').click()
+                expect(page.locator('#jobs .job')).to_have_count(0)
+                expect(page.locator('#totals .totalCard').first).to_contain_text('1 Deliveries')
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.locator('#dayTab').click()
                 # A separately signed-in employee sees the same data and can edit it.

@@ -33,3 +33,5 @@
 .connectionInfo{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right;min-width:0}#signedInUser{font-size:13px;font-weight:700;overflow-wrap:anywhere;max-width:240px}@media(max-width:650px){.connectionInfo{max-width:42%;flex-shrink:0}#signedInUser{font-size:11px}#connection{max-width:none}}
 
 #permissionChecklist{display:grid;gap:8px;margin:12px 0}#permissionChecklist label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px}#permissionChecklist input{width:20px;min-height:20px;flex-shrink:0}
+
+#requestPhotoSection,#optionalDivider,.grid>.actions{grid-column:1/-1}#requestPhotoSection hr,#optionalDivider hr{border:0;border-top:1px solid #d3dbe6;margin:20px 0}#photoPreviews{display:flex;gap:12px;flex-wrap:wrap}#photoPreviews>div{width:140px}#photoPreviews img{width:140px;height:110px;object-fit:cover;border-radius:8px}#photoPreviews button{font-size:12px;padding:6px}.photoLink{display:inline-block;padding:10px}#requestPhotoSection h3,#optionalDivider h3{font-size:16px}

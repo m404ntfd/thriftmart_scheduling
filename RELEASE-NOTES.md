@@ -1,3 +1,3 @@
-# Thrift Mart Dispatch 0.13.0
+# Thrift Mart Dispatch 0.14.0
 
-Employee editor includes a comprehensive named permission checklist. Administrators can configure scheduling, requests, cancellation, employee/vehicle management, backups, update and server actions. Server checks enforce protected actions. Administrator accounts retain full access. Contact-tool permissions control application access only; already-known phone numbers/addresses cannot be revoked.
+Request-only form requires only customer name. Photos section, Submit button, and optional details are separated by dividers. Add photos offers camera/library choices on mobile and file selection on desktop. Up to 3 photos are resized to JPEG and stored in the server database, included in existing database backups. Authorized staff can view photos during request review and on approved appointments. Scheduling approval still requires complete scheduling details.

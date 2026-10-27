@@ -2,7 +2,7 @@
 import datetime as dt
 import hashlib, hmac, json, os, secrets, socket, sqlite3, threading, time
 import updater
-import tempfile, zipfile
+import tempfile, zipfile, base64
 from contextlib import contextmanager, closing
 from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -31,6 +31,7 @@ def init():
     with connect() as c:
         c.executescript('''CREATE TABLE IF NOT EXISTS users(name TEXT PRIMARY KEY COLLATE NOCASE, salt TEXT, hash TEXT, admin INTEGER);
 CREATE TABLE IF NOT EXISTS permissions(name TEXT PRIMARY KEY COLLATE NOCASE, can_create INTEGER NOT NULL DEFAULT 1, see_requests INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS photos(job TEXT, position INTEGER, body BLOB, PRIMARY KEY(job,position));
 CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
@@ -139,7 +140,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff')
         self.send_header('X-Frame-Options','DENY')
-        self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'")
+        self.send_header('Content-Security-Policy',"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'")
         if cookie: self.send_header('Set-Cookie',cookie)
         self.end_headers(); self.wfile.write(raw)
     def user(self):
@@ -191,6 +192,16 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path=='/api/updates' and route_allowed(u,self.path):
                     last=DATA/'last-update.json'
                     return self.send({'current':updater.current(),'repository':updater.repo(),'launcher':os.environ.get('DISPATCH_LAUNCHER')=='1','last':json.loads(last.read_text()) if last.exists() else None})
+                if self.path.startswith('/api/photo/'):
+                    parts=self.path.split('/')
+                    if len(parts)!=5: raise Problem('Not found',404)
+                    row=c.execute('SELECT body FROM jobs WHERE id=?',(parts[3],)).fetchone()
+                    if not row: raise Problem('Not found',404)
+                    job=json.loads(row['body'])
+                    if not has_permission(u,'view_schedule') or (job.get('request') and not u['can_create'] and job.get('requestedBy')!=u['name']): raise Problem('Permission required.',403)
+                    photo=c.execute('SELECT body FROM photos WHERE job=? AND position=?',(parts[3],int(parts[4]))).fetchone()
+                    if not photo: raise Problem('Not found',404)
+                    return self.send(bytes(photo['body']),kind='image/jpeg')
                 if self.path=='/api/state':
                     if not has_permission(u,'view_schedule'): raise Problem('Schedule access required.',403)
                     return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
@@ -205,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
             origin=self.headers.get('Origin')
             if origin and origin!='http://'+self.headers.get('Host',''): raise Problem('Invalid origin.',403)
             n=int(self.headers.get('Content-Length','0'))
-            if n>64000: raise Problem('Request too large.')
+            if n>4500000: raise Problem('Request too large.')
             d=json.loads(self.rfile.read(n))
             if not isinstance(d,dict): raise Problem('Invalid request.')
             with LOCK, connect() as c:
@@ -361,10 +372,10 @@ class Handler(BaseHTTPRequestHandler):
                         j={k:str(d.get(k,'Scheduled' if k=='status' and not old else '')).strip() for k in fields}
                         if any(k in d for k in ('street','city','state','zip')):
                             for k in ('street','city','state','zip'): j[k]=str(d.get(k,'')).strip()
-                            if any(not j[k] for k in ('street','city','state','zip')): raise Problem('Enter street address, city, state and ZIP code.')
+                            if u['can_create'] and any(not j[k] for k in ('street','city','state','zip')): raise Problem('Enter street address, city, state and ZIP code.')
                             j['address']=j['street']+'\n'+j['city']+', '+j['state']+' '+j['zip']
                         if any(len(v)>5000 for v in j.values()): raise Problem('A field is too long.')
-                        if any(not j[k] for k in (('customer','phone','address','items','vehicle','start','end') if u['can_create'] else ('customer','phone','address','items'))): raise Problem('Complete the required fields.')
+                        if any(not j[k] for k in (('customer','phone','address','items','vehicle','start','end') if u['can_create'] else ('customer',))): raise Problem('Complete the required fields.')
                         if 'staffNames' in d:
                             names=d['staffNames']
                             if not isinstance(names,list) or len(names)>100 or any(not isinstance(n,str) or len(n)>5000 for n in names): raise Problem('Choose valid employees.')
@@ -401,6 +412,16 @@ class Handler(BaseHTTPRequestHandler):
                         else:
                             for key in ('statusUpdatedBy','statusUpdatedAt'):
                                 if key in previous_job: j[key]=previous_job[key]
+                        if not old:
+                            images=d.get('photos',[])
+                            if not isinstance(images,list) or len(images)>3: raise Problem('Attach up to 3 photos.')
+                            for i,encoded in enumerate(images):
+                                try: raw=base64.b64decode(encoded,validate=True)
+                                except Exception: raise Problem('Invalid photo.')
+                                if len(raw)>1000000 or not raw.startswith(b'\xff\xd8\xff'): raise Problem('Photos must be JPEG and under 1 MB each.')
+                                c.execute('INSERT INTO photos VALUES(?,?,?)',(jid,i,raw))
+                            j['photoCount']=len(images)
+                        else: j['photoCount']=previous_job.get('photoCount',0)
                         rev=old['revision']+1 if old else 1
                         c.execute('INSERT OR REPLACE INTO jobs VALUES(?,?,?)',(jid,rev,json.dumps(j)))
                         action=('Updated: ' if old else 'Created: ')+j['customer']

@@ -1,6 +1,6 @@
-THRIFT MART DISPATCH SERVER — 0.6.0
+THRIFT MART DISPATCH SERVER — 0.6.1
 
-Use Thrift-Mart-Dispatch-Setup-v0.6.0.exe for a normal installation. Choose Server,
+Use Thrift-Mart-Dispatch-Setup-v0.6.1.exe for a normal installation. Choose Server,
 Remote Manager or Both. The installer includes the required Python runtime.
 Open Thrift Mart Dispatch Server from the Start menu. Minimize or click X to keep it running in the system tray.
 First setup: http://localhost:8080 on the server PC. Create the administrator,

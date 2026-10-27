@@ -20,7 +20,7 @@ class ServerWindow:
     def __init__(self,root,smoke=False):
         self.root=root;self.smoke=smoke;self.process=None;self.log=None;self.stopping=False;self.tray_ready=False;self.queue=queue.Queue();self.token=secrets.token_urlsafe(48);self.deadline=time.time()+45;self.smoke_done=False;self.notice=None
         DATA.mkdir(parents=True,exist_ok=True)
-        root.title(NAME);root.geometry('660x430');root.minsize(600,400);root.iconbitmap(str(ASSETS/'dispatch.ico'))
+        root.title(NAME);root.geometry('700x510');root.minsize(660,480);root.iconbitmap(str(ASSETS/'dispatch.ico'))
         root.protocol('WM_DELETE_WINDOW',self.hide);root.bind('<Unmap>',self.on_minimize)
         style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=10);style.configure('TLabel',font=('Segoe UI',10))
         f=ttk.Frame(root,padding=24);f.pack(fill='both',expand=True)
@@ -38,7 +38,7 @@ class ServerWindow:
         ttk.Label(f,text='Minimize or close this window to keep the server running in the tray.\nDouble-click the truck icon to reopen. Use Exit server to stop it.',wraplength=600).pack(anchor='w')
         bottom=ttk.Frame(f);bottom.pack(fill='x',pady=14)
         ttk.Button(bottom,text='Open server log',command=self.open_log).pack(side='left')
-        ttk.Button(bottom,text='Exit server',command=self.ask_exit).pack(side='right')
+        self.exit_button=ttk.Button(bottom,text='Exit server',command=self.ask_exit);self.exit_button.pack(side='right')
         self.icon=pystray.Icon('ThriftMartDispatch',Image.open(ASSETS/'dispatch.png'),NAME,pystray.Menu(
             pystray.MenuItem('Open server window',lambda icon,item:self.queue.put(('show',None)),default=True),
             pystray.MenuItem('Open schedule',lambda icon,item:self.queue.put(('schedule',None))),
@@ -112,6 +112,8 @@ class ServerWindow:
             try:
                 r=request('session')
                 if r.get('application')=='thrift-mart-dispatch' and self.tray_ready:
+                    self.root.update_idletasks()
+                    assert self.exit_button.winfo_rooty()+self.exit_button.winfo_height() <= self.root.winfo_rooty()+self.root.winfo_height()
                     self.hide();self.root.update_idletasks()
                     assert self.root.state()=='withdrawn'
                     assert request('session')['application']=='thrift-mart-dispatch'

@@ -1,5 +1,6 @@
 import hashlib,io,json,os,sqlite3,tempfile,unittest,zipfile
 from pathlib import Path
+from contextlib import closing
 from unittest.mock import patch
 import updater
 class UpdateTests(unittest.TestCase):
@@ -9,7 +10,7 @@ class UpdateTests(unittest.TestCase):
   for p in self.patches:p.start()
   for name in updater.FILES:
    f=self.root/name;f.parent.mkdir(exist_ok=True,parents=True);f.write_text('0.2.0' if name=='VERSION' else '# old')
-  with sqlite3.connect(self.data/'schedule.db') as c:c.execute('CREATE TABLE jobs(customer)');c.execute("INSERT INTO jobs VALUES('Keep me')")
+  with closing(sqlite3.connect(self.data/'schedule.db')) as c:c.execute('CREATE TABLE jobs(customer)');c.execute("INSERT INTO jobs VALUES('Keep me')");c.commit()
  def tearDown(self):
   for p in self.patches:p.stop()
   self.tmp.cleanup()
@@ -32,7 +33,7 @@ class UpdateTests(unittest.TestCase):
  def test_install_preserves_data(self):
   self.stage();backup=updater.apply();self.assertEqual(updater.current(),'0.2.1')
   for db in [self.data/'schedule.db',backup/'schedule.db']:
-   with sqlite3.connect(db) as c:self.assertEqual(c.execute('SELECT customer FROM jobs').fetchone()[0],'Keep me')
+   with closing(sqlite3.connect(db)) as c:self.assertEqual(c.execute('SELECT customer FROM jobs').fetchone()[0],'Keep me')
   self.assertFalse((self.data/'pending-update').exists());updater.rollback_code(backup);self.assertEqual(updater.current(),'0.2.0')
  def test_copy_failure_restores_code(self):
   self.stage();original=os.replace;count=0

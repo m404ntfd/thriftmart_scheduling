@@ -2,6 +2,7 @@
 import datetime as dt
 import hashlib, hmac, json, os, secrets, socket, sqlite3, threading, time
 import updater
+from contextlib import contextmanager, closing
 from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
@@ -15,10 +16,13 @@ SESSIONS={}
 ATTEMPTS={}
 RESTART=False
 
+@contextmanager
 def connect():
     c=sqlite3.connect(DB, timeout=15)
     c.row_factory=sqlite3.Row
-    return c
+    try:
+        with c: yield c
+    finally: c.close()
 
 def init():
     with connect() as c:
@@ -32,7 +36,7 @@ def backup():
     folder=DATA/'backups'; folder.mkdir(exist_ok=True)
     target=folder/(dt.date.today().isoformat()+'.db')
     if not target.exists():
-        with connect() as src, sqlite3.connect(target) as dest: src.backup(dest)
+        with connect() as src, closing(sqlite3.connect(target)) as dest: src.backup(dest)
         for old in sorted(folder.glob('*.db'))[:-30]: old.unlink()
 
 def background():

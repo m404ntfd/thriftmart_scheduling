@@ -31,7 +31,7 @@ PUBLISHING FUTURE VERSIONS
   to the launcher, Python version or dependencies require a manual installer update.
 - Default repository: m404ntfd/thriftmart_scheduling.
 - The release workflow tests on Windows and Linux, builds both ZIPs and publishes
-  on pushes to main that change VERSION. It can also be run manually in Actions.
+  on main when VERSION names an unpublished release. It can also be run manually in Actions.
 
 INSTALL BEHAVIOR / RECOVERY
 Updates are manual, administrator initiated; there is no unattended update.

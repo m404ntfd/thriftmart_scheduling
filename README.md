@@ -22,7 +22,7 @@ Upgrading from 0.1 requires one manual replacement of program files because that
 
 ## Releases and data
 
-The Actions workflow tests Windows and Linux and publishes both ZIPs when `VERSION` changes on `main`. It also supports manual runs. Update release notes before increasing the version.
+The Actions workflow tests Windows and Linux and publishes both ZIPs on `main` when `VERSION` names an unpublished release. It also supports manual runs. Update release notes before increasing the version.
 
 Customer data and accounts stay in `data/`, excluded from source and release packages. Daily backups live on the same disk; copy them to a separate protected drive. Update backups are retained separately.
 

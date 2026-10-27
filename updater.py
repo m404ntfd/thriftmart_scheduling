@@ -1,6 +1,7 @@
 """GitHub public-release updates. Customer data never enters the release archive."""
 import hashlib, io, json, os, re, shutil, sqlite3, time, urllib.request, zipfile
 from pathlib import Path
+from contextlib import closing
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('DISPATCH_DATA',ROOT/'data'))
 FILES=('server.py','updater.py','VERSION','README.txt','static/index.html','static/app.js','static/style.css')
@@ -74,7 +75,7 @@ def apply():
     for name in FILES:
         target=backup/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(ROOT/name,target)
     if (DATA/'schedule.db').exists():
-        with sqlite3.connect(DATA/'schedule.db') as src, sqlite3.connect(backup/'schedule.db') as dst: src.backup(dst)
+        with closing(sqlite3.connect(DATA/'schedule.db')) as src, closing(sqlite3.connect(backup/'schedule.db')) as dst: src.backup(dst)
     try:
         for name,content in contents.items():
             target=ROOT/name; temp=target.with_name(target.name+'.update');temp.write_bytes(content);os.replace(temp,target)

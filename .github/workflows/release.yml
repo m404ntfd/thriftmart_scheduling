@@ -2,7 +2,6 @@ name: Test and release Store Dispatch
 on:
   push:
     branches: [main]
-    paths: [VERSION]
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,7 +41,7 @@ jobs:
           version="$(tr -d '\r\n' < VERSION)"
           tag="v${version}"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release already exists; refusing to replace published assets."
-            exit 1
+            echo "Release already exists; leaving published assets unchanged."
+            exit 0
           fi
           gh release create "$tag" dist/*.zip --target "$GITHUB_SHA" --title "Store Dispatch $tag" --notes-file RELEASE-NOTES.md

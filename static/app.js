@@ -38,7 +38,7 @@ function render(){
  const day=$('date').value,today=localDate(new Date()),weekly=mode==='week';
  const from=weekly?weekStart(day):day,to=weekly?shiftDate(from,6):day;
  const jobs=filtered().filter(j=>j.start.slice(0,10)<=to&&j.end.slice(0,10)>=from).sort((a,b)=>a.start.localeCompare(b.start));
- if(user&&!user.can_create)setTimeout(()=>document.querySelectorAll('#jobs .editIcon,#jobs .statusUpdate').forEach(b=>b.hidden=true),0);$('summary').textContent=`${dateLabel(from)}${weekly?' – '+dateLabel(to):''} · ${jobs.length} appointment${jobs.length===1?'':'s'}`;
+ if(user&&!user.can_create)setTimeout(()=>document.querySelectorAll('#jobs .editIcon').forEach(b=>b.hidden=true),0);$('summary').textContent=`${dateLabel(from)}${weekly?' – '+dateLabel(to):''} · ${jobs.length} appointment${jobs.length===1?'':'s'}`;
  if(weekly){let html='';for(let i=0;i<7;i++){const date=shiftDate(from,i),daily=jobs.filter(j=>j.start.slice(0,10)<=date&&j.end.slice(0,10)>=date);html+=`<section class="weekDay"><h2>${esc(dateLabel(date))}</h2>${daily.map(jobCard).join('')||'<p class="dayEmpty">No appointments.</p>'}</section>`;}$('jobs').innerHTML=html;}
  else $('jobs').innerHTML=jobs.map(jobCard).join('')||'<div class="empty"><h2>No appointments to show.</h2><p>Choose another date or filter, or add a pickup or delivery.</p></div>';
  for(const [id,selected]of [['dayTab',mode==='day'&&day===today],['weekTab',weekly&&from===weekStart(today)],['nextWeekTab',weekly&&from===shiftDate(weekStart(today),7)],['settingsTab',mode==='settings']]){$(id).classList.toggle('selected',selected);$(id).setAttribute('aria-pressed',String(selected));}
@@ -46,7 +46,7 @@ function render(){
 }
 function tab(t){mode=t;if(t==='settings'){loadUpdates();loadBackups();}$('schedule').hidden=t==='settings';$('settings').hidden=t!=='settings';render();}
 function quickView(offset){const today=localDate(new Date());$('date').value=offset===null?today:shiftDate(weekStart(today),offset);tab(offset===null?'day':'week');}
-function openJob(id,type){if(!state.vehicles.length){toast('Add a vehicle in Settings first.');if(user.admin)tab('settings');return;}editing=id?state.jobs.find(j=>j.id===id):null;$('jobForm').reset();$('jobVehicle').innerHTML=state.vehicles.map(v=>`<option>${esc(v)}</option>`).join('');const j=editing||{state:'MS',type:type||'Pickup',status:'Scheduled',start:$('date').value+'T09:00',end:$('date').value+'T10:00'};for(const [k,v]of Object.entries(j))if($('jobForm').elements[k])$('jobForm').elements[k].value=v;
+function openJob(id,type){if(!state.vehicles.length){toast('Add a vehicle in Settings first.');if(user.admin)tab('settings');return;}editing=id?state.jobs.find(j=>j.id===id):null;$('jobForm').reset();$('jobForm').elements.status.innerHTML=(user.can_create?['Scheduled','In Route / In Progress','Completed','Canceled']:['Requested','Canceled']).map(v=>`<option value="${v}">${v==='Canceled'?'Cancelled':v}</option>`).join('');$('jobVehicle').innerHTML=state.vehicles.map(v=>`<option>${esc(v)}</option>`).join('');const j=editing||{state:'MS',type:type||'Pickup',status:user.can_create?'Scheduled':'Requested',start:$('date').value+'T09:00',end:$('date').value+'T10:00'};for(const [k,v]of Object.entries(j))if($('jobForm').elements[k])$('jobForm').elements[k].value=v;
 $('jobForm').elements.street.value=j.street||j.address||'';$('legacyAddress').hidden=!editing||!!j.street;
 const assigned=j.staffNames|| (j.staff?[j.staff]:[]);const names=[...new Set([...state.users.map(u=>u.name),...assigned])];$('employeeOptions').innerHTML=names.map(n=>`<label><input type="checkbox" name="staffNames" value="${esc(n)}" ${assigned.includes(n)?'checked':''}> ${esc(n)}${state.users.some(u=>u.name===n)?'':' (previous assignment)'}</label>`).join('');$('employeeDropdown').open=false;employeeSummary();$('editTitle').textContent=editing?(editing.request?'Review request':'Appointment details'):(user.can_create?'New appointment':'Submit appointment request');$('save').textContent=editing?.request?'Approve & schedule':user.can_create?'Save appointment':'Submit request';$('remove').hidden=!editing;$('formError').textContent='';$('editor').showModal();}
 $('login').onsubmit=async e=>{e.preventDefault();try{const wasSetup=setup;await api(setup?'setup':'login',Object.fromEntries(new FormData(e.target)));e.target.reset();await boot();if(wasSetup){tab('settings');settingsSection(3);}}catch(err){$('authError').textContent=err.message;}};
@@ -88,8 +88,9 @@ $('employeeOptions').onchange=employeeSummary;
 
 let statusEditing=null;
 function openStatus(id){
- statusEditing=state.jobs.find(j=>j.id===id);if(!statusEditing)return;
+ statusEditing=[...state.jobs,...(state.requests||[])].find(j=>j.id===id);if(!statusEditing)return;
  $('statusCustomer').textContent=statusEditing.customer+' · Current status: '+statusEditing.status;
+ document.querySelector('.statusOptions').innerHTML='<legend>Appointment status</legend>'+(user.can_create?['Scheduled','In Route / In Progress','Completed','Canceled']:['Requested','Canceled']).map(value=>`<label><input type="radio" name="appointmentStatus" value="${value}" required ${value==='Requested'&&(!statusEditing.request||statusEditing.requestedBy!==user.name)?'disabled':''}><span>${value==='Canceled'?'Cancelled':value}</span></label>`).join('');
  for(const option of document.querySelectorAll('[name=appointmentStatus]'))option.checked=option.value===statusEditing.status;
  $('statusError').textContent='';$('statusDialog').showModal();
 }
@@ -106,13 +107,13 @@ $('accountClose').onclick=()=>$('accountDialog').close();
 $('accountForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{await api('account/password',Object.fromEntries(new FormData(e.target)));$('accountDialog').close();e.target.reset();await boot();toast('Login updated. Sign in with your new password or passcode.');}catch(err){$('accountError').textContent=err.message;}finally{button.disabled=false;}};
 
 function renderRequests(){
- const requests=state.requests||[];$('requestsButton').hidden=!user.see_requests||!requests.length;$('requestsButton').textContent=`Requests (${requests.length})`;
- if(!user.see_requests)$('requestsList').hidden=true;
- $('requestsList').innerHTML=requests.map(j=>`<div class="panel"><strong>${esc(j.type)} request: ${esc(j.customer)}</strong><p>${esc(j.start)} · ${esc(j.address)} · ${esc(j.items)}</p><p>Submitted by ${esc(j.requestedBy)}</p><button data-review="${esc(j.id)}">Review request</button></div>`).join('');
- document.querySelectorAll('#jobs .editIcon,#jobs .statusUpdate').forEach(b=>b.hidden=!user.can_create);
+ const requests=state.requests||[];$('requestsButton').hidden=!(user.see_requests||!user.can_create)||!requests.length;$('requestsButton').textContent=`Requests (${requests.length})`;
+ if(!user.see_requests&&user.can_create)$('requestsList').hidden=true;
+ $('requestsList').innerHTML=requests.map(j=>`<div class="panel"><strong>${esc(j.type)} request: ${esc(j.customer)}</strong><p>${esc(j.start)} · ${esc(j.address)} · ${esc(j.items)}</p><p>Submitted by ${esc(j.requestedBy)}</p>${user.can_create?`<button data-review="${esc(j.id)}">Review request</button>`:`<button data-request-status="${esc(j.id)}">Status Update</button>`}</div>`).join('');
+ document.querySelectorAll('#jobs .editIcon').forEach(b=>b.hidden=!user.can_create);
 }
 $('requestsButton').onclick=()=>$('requestsList').hidden=!$('requestsList').hidden;
-$('requestsList').onclick=e=>{const b=e.target.closest('[data-review]');if(!b)return;const request=state.requests.find(j=>j.id===b.dataset.review);state.jobs.push(request);openJob(request.id);};
+$('requestsList').onclick=e=>{const status=e.target.closest('[data-request-status]');if(status){openStatus(status.dataset.requestStatus);return;}const b=e.target.closest('[data-review]');if(!b)return;const request=state.requests.find(j=>j.id===b.dataset.review);state.jobs.push(request);openJob(request.id);};
 $('savePermissions').onclick=async()=>{try{await api('admin/permissions',{name:$('passwordUser').value,can_create:$('canCreate').checked,see_requests:$('seeRequests').checked});$('permissionMessage').textContent='Permissions saved.';await refresh();}catch(e){$('permissionMessage').textContent=e.message;}};
 
 const settingsPanels=[...$('settings').children];

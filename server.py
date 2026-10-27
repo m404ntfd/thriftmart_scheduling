@@ -283,14 +283,17 @@ class Handler(BaseHTTPRequestHandler):
                     if not 1<=len(name)<=80: raise Problem('Enter a vehicle name.')
                     c.execute('INSERT INTO vehicles VALUES(?)',(name,))
                 elif self.path=='/api/status':
-                    if not u['can_create']: raise Problem('Scheduling permission required.',403)
                     jid=str(d.get('id',''))
                     old=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
-                    if not old or json.loads(old['body']).get('request') or d.get('revision')!=old['revision']: raise Problem('Someone changed this appointment. Close this popup, refresh, and try again.',409)
+                    if not old or d.get('revision')!=old['revision']: raise Problem('Someone changed this appointment. Close this popup, refresh, and try again.',409)
                     status=d.get('status')
-                    if status not in ('Scheduled','In Route / In Progress','Completed'): raise Problem('Choose a valid status.')
                     j=json.loads(old['body'])
-                    if status!='Completed':
+                    if not u['can_create']:
+                        if status not in ('Requested','Canceled'): raise Problem('Request-only users may only request or cancel appointments.',403)
+                        if status=='Requested' and (not j.get('request') or j.get('requestedBy')!=u['name']): raise Problem('Only your pending requests can have Requested status.',403)
+                    elif status not in ('Scheduled','In Route / In Progress','Completed','Canceled'): raise Problem('Choose a valid status.')
+                    if status not in ('Completed','Canceled','Requested'):
+
                         for r in c.execute('SELECT * FROM jobs WHERE id!=?',(jid,)):
                             other=json.loads(r['body'])
                             if not other.get('request') and other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
@@ -324,14 +327,16 @@ class Handler(BaseHTTPRequestHandler):
                             allowed.update(previous.get('staffNames', [previous['staff']] if previous.get('staff') else []))
                             if any(n not in allowed for n in names): raise Problem('An employee was removed. Reopen the appointment and select current employees.')
                             j['staffNames']=list(dict.fromkeys(names));j['staff']=', '.join(j['staffNames'])
-                        if j['type'] not in ('Pickup','Delivery') or j['status'] not in ('Scheduled','Confirmed','In Route / In Progress','Completed','Canceled'): raise Problem('Invalid type or status.')
+                        if j['type'] not in ('Pickup','Delivery') or j['status'] not in ('Requested','Scheduled','Confirmed','In Route / In Progress','Completed','Canceled'): raise Problem('Invalid type or status.')
                         try:
                             start=dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M'); end=dt.datetime.strptime(j['end'],'%Y-%m-%dT%H:%M')
                         except ValueError: raise Problem('Choose a valid date and time.')
                         if end<=start: raise Problem('End time must be after start time.')
                         if not c.execute('SELECT 1 FROM vehicles WHERE name=?',(j['vehicle'],)).fetchone(): raise Problem('Choose an existing vehicle.')
                         pending=not u['can_create']
-                        if pending: j['status']='Scheduled';j['request']=True;j['requestedBy']=u['name']
+                        if pending:
+                            if j['status'] not in ('Requested','Canceled'): raise Problem('Request-only users may only request or cancel appointments.',403)
+                            j['request']=True;j['requestedBy']=u['name']
                         if not pending and j['status'] not in ('Completed','Canceled'):
                             for r in c.execute('SELECT * FROM jobs WHERE id!=?',(jid,)):
                                 other=json.loads(r['body'])

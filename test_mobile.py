@@ -63,7 +63,7 @@ def run():
                 assert page.evaluate("navigationUrl('123 Main', 'Macintosh', 'MacIntel', 5)").startswith('https://maps.apple.com/')
                 assert page.evaluate("navigationUrl('123 Main', 'Android', 'Linux', 1)").endswith('travelmode=driving&dir_action=navigate')
                 page.locator('[data-status]').click()
-                expect(page.locator('[name=appointmentStatus]')).to_have_count(3)
+                expect(page.locator('[name=appointmentStatus]')).to_have_count(4)
                 expect(page.locator('[name=appointmentStatus][value=Scheduled]')).to_be_checked()
                 page.locator('.statusOptions span').get_by_text('In Route / In Progress',exact=True).click()
                 page.locator('#statusSave').click()

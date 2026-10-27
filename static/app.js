@@ -94,3 +94,7 @@ $('statusForm').onsubmit=async e=>{
  catch(err){$('statusError').textContent=err.message;}
  finally{$('statusSave').disabled=false;}
 };
+
+$('accountButton').onclick=()=>{$('accountForm').reset();$('accountError').textContent='';$('accountDialog').showModal();};
+$('accountClose').onclick=()=>$('accountDialog').close();
+$('accountForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{await api('account/password',Object.fromEntries(new FormData(e.target)));$('accountDialog').close();e.target.reset();await boot();toast('Login updated. Sign in with your new password or passcode.');}catch(err){$('accountError').textContent=err.message;}finally{button.disabled=false;}};

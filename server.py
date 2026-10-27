@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
 
+def valid_credential(p): return 8<=len(p)<=256 or (len(p)==4 and all(c in '0123456789' for c in p))
 def password(p,s): return hashlib.pbkdf2_hmac('sha256',p.encode(),bytes.fromhex(s),200000).hex()
 def backup():
     folder=DATA/'backups'; folder.mkdir(exist_ok=True)
@@ -192,11 +193,14 @@ class Handler(BaseHTTPRequestHandler):
                     for k,v in list(SESSIONS.items()):
                         if v is u: del SESSIONS[k]
                     return self.send({'ok':True},cookie='session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
-                if self.path=='/api/admin/password':
-                    if not u['admin']: raise Problem('Administrator access required.',403)
-                    name=str(d.get('name','')).strip()
+                if self.path in ('/api/admin/password','/api/account/password'):
+                    if self.path=='/api/admin/password' and not u['admin']: raise Problem('Administrator access required.',403)
+                    name=u['name'] if self.path=='/api/account/password' else str(d.get('name','')).strip()
+                    if self.path=='/api/account/password':
+                        account=c.execute('SELECT * FROM users WHERE name=?',(u['name'],)).fetchone()
+                        if not hmac.compare_digest(account['hash'],password(str(d.get('current','')),account['salt'])): raise Problem('Current password or passcode is incorrect.',403)
                     new_password=str(d.get('password',''))
-                    if not 8<=len(new_password)<=256: raise Problem('Use a password of 8–256 characters.')
+                    if not valid_credential(new_password): raise Problem('Use an 8–256 character password or exactly 4 digits.')
                     if new_password!=d.get('confirm'): raise Problem('The passwords do not match.')
                     target=c.execute('SELECT name FROM users WHERE name=?',(name,)).fetchone()
                     if not target: raise Problem('User not found.',404)
@@ -327,7 +331,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             print('Request failed:',e); self.send({'error':'Unable to save. Check the server and try again.'},500)
     def add_user(self,c,name,p,admin):
-        if not 1<=len(name)<=80 or len(p)<8 or len(p)>256: raise Problem('Enter a name and a password of 8–256 characters.')
+        if not 1<=len(name)<=80 or not valid_credential(p): raise Problem('Enter a name and a password of 8–256 characters.')
         salt=secrets.token_hex(16)
         c.execute('INSERT INTO users VALUES(?,?,?,?)',(name,salt,password(p,salt),int(admin)))
 

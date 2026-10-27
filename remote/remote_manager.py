@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk,messagebox
 from client import Client
 NAME='Thrift Mart Dispatch Remote Manager'
-VERSION='0.8.1'
+VERSION='0.11.0'
 CONFIG=Path(os.environ.get('APPDATA',Path.home()))/'ThriftMartDispatchRemoteManager'/'config.json'
 
 class App:
@@ -121,11 +121,11 @@ class App:
             ttk.Button(frame,text='Remove selected employee',command=remove).pack(anchor='w',pady=4)
             ttk.Separator(frame).pack(fill='x',pady=12)
             name=tk.StringVar();password=tk.StringVar();confirm=tk.StringVar();message=tk.StringVar()
-            for label,var in [('New employee name',name),('Password (8–256 characters)',password),('Confirm password',confirm)]:
+            for label,var in [('New employee name',name),('Password (8–256 characters or exactly 4 digits)',password),('Confirm password',confirm)]:
                 ttk.Label(frame,text=label).pack(anchor='w');ttk.Entry(frame,textvariable=var,show='' if var is name else '•').pack(fill='x',pady=3)
             def add():
                 if not self.require():return
-                if not name.get().strip() or not 8<=len(password.get())<=256:message.set('Enter a name and password of 8–256 characters.');return
+                if not name.get().strip() or not (8<=len(password.get())<=256 or (len(password.get())==4 and all(c in '0123456789' for c in password.get()))):message.set('Enter a name and password of 8–256 characters or exactly 4 digits.');return
                 if password.get()!=confirm.get():message.set('Passwords do not match.');return
                 payload={'name':name.get().strip(),'password':password.get()}
                 def work():client.request('user',payload);return client.request('admin/users')
@@ -153,7 +153,7 @@ class App:
             def save():
                 if not self.require():return
                 if not selected.get():error.set('Select a user.');return
-                if not 8<=len(first.get())<=256:error.set('Use 8–256 characters.');return
+                if not (8<=len(first.get())<=256 or (len(first.get())==4 and all(c in '0123456789' for c in first.get()))):error.set('Use 8–256 characters or exactly 4 digits.');return
                 if first.get()!=second.get():error.set('The passwords do not match.');return
                 payload={'name':selected.get(),'password':first.get(),'confirm':second.get()}
                 first.set('');second.set('');dialog.destroy()

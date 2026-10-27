@@ -62,6 +62,8 @@ def run():
                 page.locator('.statusOptions span').get_by_text('In Route / In Progress',exact=True).click()
                 page.locator('#statusSave').click()
                 expect(page.locator('#jobs .status-in-progress')).to_have_count(1)
+                expect(page.locator('.statusHistory')).to_contain_text('Last updated by')
+                expect(page.locator('.statusHistory strong em').first).to_have_text('Manager')
                 page.locator('[data-status]').click()
                 page.locator('.statusOptions span').get_by_text('Completed',exact=True).click()
                 page.locator('#statusSave').click()

@@ -21,3 +21,5 @@
 @media(max-width:650px){.job{grid-template-columns:minmax(0,1fr);padding-right:16px;padding-top:20px}.job .time{padding-right:44px;min-height:38px}.job .statusUpdate{width:100%}.job .editIcon{width:44px;min-width:44px}}
 
 .statusOptions{border:0;padding:0;margin:16px 0}.statusOptions legend{font-weight:650;margin-bottom:12px}.statusOptions label{position:relative;margin:10px 0}.statusOptions input{position:absolute;opacity:0;width:1px;height:1px}.statusOptions span{display:block;padding:16px;border:2px solid #ccd5e1;border-radius:10px;font-size:16px;background:white;color:#244f87}.statusOptions input:checked+span{background:#215baa;color:white;border-color:#215baa;box-shadow:0 0 0 2px #b6ceef}.statusOptions input:checked+span::after{content:' ✓';float:right}.statusOptions input:focus-visible+span{outline:3px solid #efb53e;outline-offset:3px}
+
+.statusHistory{grid-column:1/-1;background:#f5f7fa;border:1px solid #dce2ec;border-radius:8px;padding:12px;font-size:13px;line-height:1.5;overflow-wrap:anywhere;color:#46526a}

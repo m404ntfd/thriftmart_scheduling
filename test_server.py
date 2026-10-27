@@ -78,6 +78,11 @@ class Tests(unittest.TestCase):
   self.assertEqual(updated['staffNames'],appointment['staffNames'])
   self.assertEqual(updated['address'],appointment['address'])
   self.assertEqual(updated['status'],'In Route / In Progress')
+  self.assertEqual(updated['statusUpdatedBy'],'Manager')
+  self.assertTrue(updated['statusUpdatedAt'])
+  self.assertEqual(self.call('save',{**updated,'notes':'Only details changed'})[0],200)
+  unchanged=next(j for j in self.call('state')[1]['jobs'] if j['id']==updated['id'])
+  self.assertEqual(unchanged['statusUpdatedAt'],updated['statusUpdatedAt'])
 
   self.assertEqual(self.call('logout',{})[0],200)
   self.assertEqual(self.call('state')[0],401)

@@ -282,6 +282,7 @@ class Handler(BaseHTTPRequestHandler):
                             if other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
                                 raise Problem('This vehicle is already booked during that time. Edit the appointment time or vehicle first.',409)
                     previous=j['status'];j['status']=status
+                    j['statusUpdatedBy']=u['name'];j['statusUpdatedAt']=dt.datetime.now().astimezone().isoformat(timespec='seconds')
                     c.execute('UPDATE jobs SET revision=?,body=? WHERE id=?',(old['revision']+1,json.dumps(j),jid))
                     c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Status: '+previous+' → '+status+' · '+j['customer'],jid))
                 elif self.path in ('/api/save','/api/delete'):
@@ -319,6 +320,12 @@ class Handler(BaseHTTPRequestHandler):
                                 other=json.loads(r['body'])
                                 if other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
                                     raise Problem('This vehicle is already booked during that time. Choose another time or vehicle.',409)
+                        previous_job=json.loads(old['body']) if old else {}
+                        if not old or previous_job.get('status')!=j['status']:
+                            j['statusUpdatedBy']=u['name'];j['statusUpdatedAt']=dt.datetime.now().astimezone().isoformat(timespec='seconds')
+                        else:
+                            for key in ('statusUpdatedBy','statusUpdatedAt'):
+                                if key in previous_job: j[key]=previous_job[key]
                         rev=old['revision']+1 if old else 1
                         c.execute('INSERT OR REPLACE INTO jobs VALUES(?,?,?)',(jid,rev,json.dumps(j)))
                         action=('Updated: ' if old else 'Created: ')+j['customer']

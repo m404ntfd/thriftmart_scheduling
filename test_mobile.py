@@ -43,6 +43,8 @@ def run():
                 page.locator('#addDelivery').click()
                 expect(page.locator('#jobForm [name=type]')).to_have_value('Delivery')
                 expect(page.locator('#jobForm [name=status]')).to_have_value('Scheduled')
+                expect(page.locator('#jobForm [name=state]')).to_have_value('MS')
+                expect(page.locator('#jobForm [name=state] option:checked')).to_have_text('Mississippi')
                 for name, value in {'customer':'Phone customer','phone':'555-0100','street':'123 Main Street','city':'Springfield','state':'IL','zip':'62701','items':'Sofa and two chairs'}.items():
                     page.locator(f'#jobForm [name={name}]').select_option(value) if name=='state' else page.locator(f'#jobForm [name={name}]').fill(value)
                 page.locator('#employeeSummary').click()

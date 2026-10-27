@@ -265,6 +265,21 @@ class Handler(BaseHTTPRequestHandler):
                     name=str(d.get('name','')).strip()
                     if not 1<=len(name)<=80: raise Problem('Enter a vehicle name.')
                     c.execute('INSERT INTO vehicles VALUES(?)',(name,))
+                elif self.path=='/api/status':
+                    jid=str(d.get('id',''))
+                    old=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
+                    if not old or d.get('revision')!=old['revision']: raise Problem('Someone changed this appointment. Close this popup, refresh, and try again.',409)
+                    status=d.get('status')
+                    if status not in ('Scheduled','In Route / In Progress','Completed'): raise Problem('Choose a valid status.')
+                    j=json.loads(old['body'])
+                    if status!='Completed':
+                        for r in c.execute('SELECT * FROM jobs WHERE id!=?',(jid,)):
+                            other=json.loads(r['body'])
+                            if other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
+                                raise Problem('This vehicle is already booked during that time. Edit the appointment time or vehicle first.',409)
+                    previous=j['status'];j['status']=status
+                    c.execute('UPDATE jobs SET revision=?,body=? WHERE id=?',(old['revision']+1,json.dumps(j),jid))
+                    c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Status: '+previous+' → '+status+' · '+j['customer'],jid))
                 elif self.path in ('/api/save','/api/delete'):
                     jid=str(d.get('id') or secrets.token_hex(12))
                     old=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
@@ -289,7 +304,7 @@ class Handler(BaseHTTPRequestHandler):
                             allowed.update(previous.get('staffNames', [previous['staff']] if previous.get('staff') else []))
                             if any(n not in allowed for n in names): raise Problem('An employee was removed. Reopen the appointment and select current employees.')
                             j['staffNames']=list(dict.fromkeys(names));j['staff']=', '.join(j['staffNames'])
-                        if j['type'] not in ('Pickup','Delivery') or j['status'] not in ('Scheduled','Confirmed','Completed','Canceled'): raise Problem('Invalid type or status.')
+                        if j['type'] not in ('Pickup','Delivery') or j['status'] not in ('Scheduled','Confirmed','In Route / In Progress','Completed','Canceled'): raise Problem('Invalid type or status.')
                         try:
                             start=dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M'); end=dt.datetime.strptime(j['end'],'%Y-%m-%dT%H:%M')
                         except ValueError: raise Problem('Choose a valid date and time.')

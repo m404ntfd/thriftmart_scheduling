@@ -56,6 +56,19 @@ def run():
                 assert page.evaluate("navigationUrl('123 Main & Oak', 'iPhone', 'iPhone', 1)") == 'https://maps.apple.com/?daddr=123%20Main%20%26%20Oak&dirflg=d'
                 assert page.evaluate("navigationUrl('123 Main', 'Macintosh', 'MacIntel', 5)").startswith('https://maps.apple.com/')
                 assert page.evaluate("navigationUrl('123 Main', 'Android', 'Linux', 1)").endswith('travelmode=driving&dir_action=navigate')
+                page.locator('[data-status]').click()
+                expect(page.locator('#statusChoice option')).to_have_count(3)
+                page.locator('#statusChoice').select_option('In Route / In Progress')
+                page.locator('#statusSave').click()
+                expect(page.locator('#jobs .status-in-progress')).to_have_count(1)
+                page.locator('[data-status]').click()
+                page.locator('#statusChoice').select_option('Completed')
+                page.locator('#statusSave').click()
+                expect(page.locator('#jobs .status-completed')).to_have_count(1)
+                page.locator('[data-status]').click()
+                page.locator('#statusChoice').select_option('Scheduled')
+                page.locator('#statusSave').click()
+                expect(page.locator('#jobs .status-scheduled')).to_have_count(1)
                 for width in [320,375,430,1280]:
                     page.set_viewport_size({'width':width,'height':812})
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Overflow at {width}px'

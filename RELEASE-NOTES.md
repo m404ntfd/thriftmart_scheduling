@@ -1,8 +1,9 @@
-# Thrift Mart Dispatch 0.9.1
+# Thrift Mart Dispatch 0.10.0
 
-- Appointment Open map buttons are now Navigate buttons.
-- iPhone/iPad links request Apple Maps driving directions from the current location to the appointment address.
-- Android and desktop links request Google Maps driving navigation, with browser directions when app handoff is unavailable.
-- The device/browser determines which app opens; the website cannot guarantee an arbitrary system-default maps app. Depending on permissions and location availability, the map app may show a route preview and require Start/Go.
+- Small pencil edit button at the upper-right corner of each appointment.
+- Status Update button at the bottom opens a popup offering Scheduled, In Route / In Progress, and Completed.
+- Status bars: Scheduled blue, In Route / In Progress yellow, Completed green.
+- Status-only updates preserve all appointment details, work on older appointments, detect concurrent changes, and are recorded in recent changes.
+- Existing Confirmed appointments remain supported and blue; Canceled remains available through full editing.
 
-Install with the server update button and reload the schedule on phones. No separate Remote Manager reinstall is required for this change.
+Update the server and reload the schedule on phones.

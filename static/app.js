@@ -4,7 +4,7 @@ let state={jobs:[],vehicles:[],users:[]},user,setup=false,mode='day',editing=nul
 const localDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 $('date').value=localDate(new Date());
 $('mobileLink').href=location.origin+'/mobile';$('mobileLink').textContent=location.origin+'/mobile';
-async function api(path,data){const r=await fetch('/api/'+path,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json','X-Dispatch':'1'}:{},body:data?JSON.stringify(data):undefined});const v=await r.json();if(!r.ok){if(r.status===401&&user){user=null;clearInterval(timer);$('app').hidden=true;$('auth').hidden=false;$('editor').close();$('passwordDialog').close();}throw Error(v.error||'Request failed');}return v;}
+async function api(path,data){const r=await fetch('/api/'+path,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json','X-Dispatch':'1'}:{},body:data?JSON.stringify(data):undefined});const v=await r.json();if(!r.ok){if(r.status===401&&user){user=null;clearInterval(timer);$('app').hidden=true;$('auth').hidden=false;$('editor').close();$('passwordDialog').close();$('statusDialog').close();}throw Error(v.error||'Request failed');}return v;}
 function toast(s){$('toast').textContent=s;$('toast').hidden=false;setTimeout(()=>$('toast').hidden=true,5000);}
 async function boot(){try{const s=await api('session');setup=s.setup;user=s.user;$('authTitle').textContent=setup?'Set up your store':'Welcome back';$('authHelp').textContent=setup?(s.local?'Create the administrator account. Then add your vehicles and employees.':'Open http://localhost:8080 on the server computer to create the first account.'):'Sign in to the shared store schedule.';$('auth').hidden=!!user;$('app').hidden=!user;$('connection').textContent=user?'Connected to store':'Store server online';if(user){$('settingsTab').hidden=!user.admin;$('serverUpdateButton').hidden=!user.admin;if(!user.admin)tab('day');await refresh();clearInterval(timer);timer=setInterval(()=>refresh().catch(()=>{}),10000);}}catch(e){$('connection').textContent='Server unavailable';$('offline').hidden=false;toast(e.message);}}
 async function refresh(){try{state=await api('state');$('connection').textContent='● Connected · '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});$('offline').hidden=true;const value=$('filter').value;$('filter').innerHTML='<option value="">All vehicles</option>'+state.vehicles.map(v=>`<option>${esc(v)}</option>`).join('');$('filter').value=value;render();$('vehicles').innerHTML=state.vehicles.map(v=>`<div class="listRow">${esc(v)}</div>`).join('')||'<p>No vehicles yet.</p>';$('users').innerHTML=state.users.map(v=>`<div class="listRow">${esc(v.name)}${v.admin?' · Administrator':''} <button type="button" data-password="${esc(v.name)}">Change password</button></div>`).join('');}catch(e){$('connection').textContent='Disconnected';$('offline').hidden=false;throw e;}}
@@ -26,7 +26,7 @@ function navigationUrl(address,ua=navigator.userAgent,platform=navigator.platfor
  const apple=/iPhone|iPad|iPod/i.test(ua)||(platform==='MacIntel'&&touch>1);
  return apple?`https://maps.apple.com/?daddr=${destination}&dirflg=d`:`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving&dir_action=navigate`;
 }
-function jobCard(j){return `<article class="job status-${esc(j.status.toLowerCase())}"><div class="time">${esc(timeLabel(j.start))}<div class="muted">to ${esc(timeLabel(j.end))}${j.end.slice(0,10)!==j.start.slice(0,10)?' · '+esc(j.end.slice(0,10)):''}</div></div><div><span class="tag">${esc(j.type)}</span><span class="tag">${esc(j.status)}</span><h2>${esc(j.customer)}</h2><p>${esc(j.items)}</p><p>${esc(j.address)}</p><div class="contactActions"><a target="_blank" rel="noopener noreferrer" href="${esc(navigationUrl(j.address))}" aria-label="Navigate to ${esc(j.address)}">Navigate ↗</a>${j.phone?`<a href="tel:${esc(j.phone.replace(/[^+0-9*#,;]/g,''))}">Call ${esc(j.phone)}</a>`:''}</div><p class="meta">${esc(j.vehicle)}${j.staff?' · '+esc(j.staff):''}</p>${j.notes?`<p class="muted">${esc(j.notes)}</p>`:''}</div><button data-edit="${esc(j.id)}">View / edit</button></article>`;}
+function jobCard(j){return `<article class="job status-${j.status==='In Route / In Progress'?'in-progress':esc(j.status.toLowerCase())}"><button class="editIcon" data-edit="${esc(j.id)}" aria-label="Edit appointment for ${esc(j.customer)}" title="Edit appointment">✎</button><div class="time">${esc(timeLabel(j.start))}<div class="muted">to ${esc(timeLabel(j.end))}${j.end.slice(0,10)!==j.start.slice(0,10)?' · '+esc(j.end.slice(0,10)):''}</div></div><div><span class="tag">${esc(j.type)}</span><span class="tag">${esc(j.status)}</span><h2>${esc(j.customer)}</h2><p>${esc(j.items)}</p><p>${esc(j.address)}</p><div class="contactActions"><a target="_blank" rel="noopener noreferrer" href="${esc(navigationUrl(j.address))}" aria-label="Navigate to ${esc(j.address)}">Navigate ↗</a>${j.phone?`<a href="tel:${esc(j.phone.replace(/[^+0-9*#,;]/g,''))}">Call ${esc(j.phone)}</a>`:''}</div><p class="meta">${esc(j.vehicle)}${j.staff?' · '+esc(j.staff):''}</p>${j.notes?`<p class="muted">${esc(j.notes)}</p>`:''}</div><button class="statusUpdate" data-status="${esc(j.id)}">Status Update</button></article>`;}
 function render(){
  renderTotals();
  const day=$('date').value,today=localDate(new Date()),weekly=mode==='week';
@@ -47,7 +47,7 @@ $('login').onsubmit=async e=>{e.preventDefault();try{const wasSetup=setup;await 
 $('logout').onclick=async()=>{try{await api('logout',{});clearInterval(timer);await boot();}catch(e){toast(e.message);}};
 $('dayTab').onclick=()=>quickView(null);$('weekTab').onclick=()=>quickView(0);$('nextWeekTab').onclick=()=>quickView(7);$('settingsTab').onclick=()=>tab('settings');$('addPickup').onclick=()=>openJob(null,'Pickup');$('addDelivery').onclick=()=>openJob(null,'Delivery');$('close').onclick=()=>$('editor').close();$('date').onchange=()=>{if(!$('date').value)$('date').value=localDate(new Date());tab('day');};$('filter').onchange=render;$('statusFilter').onchange=render;$('search').oninput=render;
 for(const [id,step]of [['prev',-1],['next',1]])$(id).onclick=()=>{$('date').value=shiftDate($('date').value,step*(mode==='week'?7:1));render();};
-$('jobs').onclick=e=>{const b=e.target.closest('[data-edit]');if(b)openJob(b.dataset.edit);};
+$('jobs').onclick=e=>{const b=e.target.closest('[data-edit]');if(b)openJob(b.dataset.edit);const status=e.target.closest('[data-status]');if(status)openStatus(status.dataset.status);};
 $('jobForm').onsubmit=async e=>{e.preventDefault();$('save').disabled=true;try{await api('save',{...Object.fromEntries(new FormData(e.target)),staffNames:new FormData(e.target).getAll('staffNames'),...(editing?{id:editing.id,revision:editing.revision}:{})});$('editor').close();toast('Appointment saved.');await refresh().catch(()=>toast('Saved. Reconnect to refresh the schedule.'));}catch(err){$('formError').textContent=err.message;}finally{$('save').disabled=false;}};
 $('remove').onclick=async()=>{if(!editing||!confirm('Remove this appointment from the schedule? Use Canceled status instead if you want to keep its details.'))return;try{await api('delete',{id:editing.id,revision:editing.revision});$('editor').close();toast('Appointment removed.');await refresh().catch(()=>toast('Removed. Reconnect to refresh the schedule.'));}catch(e){$('formError').textContent=e.message;}};
 for(const [id,path]of [['vehicleForm','vehicle'],['userForm','user']])$(id).onsubmit=async e=>{e.preventDefault();try{await api(path,Object.fromEntries(new FormData(e.target)));e.target.reset();await refresh();toast(path==='user'?'Employee account added.':'Vehicle added.');}catch(err){toast(err.message);}};
@@ -79,3 +79,18 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&user)retr
 
 function employeeSummary(){const selected=[...$('employeeOptions').querySelectorAll('input:checked')].map(e=>e.value);$('employeeSummary').textContent=selected.length?selected.join(', '):'Select employees (optional)';}
 $('employeeOptions').onchange=employeeSummary;
+
+let statusEditing=null;
+function openStatus(id){
+ statusEditing=state.jobs.find(j=>j.id===id);if(!statusEditing)return;
+ $('statusCustomer').textContent=statusEditing.customer+' · Current status: '+statusEditing.status;
+ $('statusChoice').value=['Scheduled','In Route / In Progress','Completed'].includes(statusEditing.status)?statusEditing.status:'Scheduled';
+ $('statusError').textContent='';$('statusDialog').showModal();
+}
+$('statusClose').onclick=()=>$('statusDialog').close();
+$('statusForm').onsubmit=async e=>{
+ e.preventDefault();if(!statusEditing)return;$('statusSave').disabled=true;
+ try{await api('status',{id:statusEditing.id,revision:statusEditing.revision,status:$('statusChoice').value});$('statusDialog').close();toast('Status updated.');await refresh().catch(()=>toast('Status saved. Reconnect to refresh the schedule.'));}
+ catch(err){$('statusError').textContent=err.message;}
+ finally{$('statusSave').disabled=false;}
+};

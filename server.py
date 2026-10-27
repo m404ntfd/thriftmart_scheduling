@@ -294,7 +294,7 @@ class Handler(BaseHTTPRequestHandler):
                         c.execute('DELETE FROM jobs WHERE id=?',(jid,)); action='Removed: '+json.loads(old['body'])['customer']
                     else:
                         fields=['type','customer','phone','address','items','vehicle','start','end','staff','notes','status']
-                        j={k:str(d.get(k,'')).strip() for k in fields}
+                        j={k:str(d.get(k,'Scheduled' if k=='status' and not old else '')).strip() for k in fields}
                         if any(k in d for k in ('street','city','state','zip')):
                             for k in ('street','city','state','zip'): j[k]=str(d.get(k,'')).strip()
                             if any(not j[k] for k in ('street','city','state','zip')): raise Problem('Enter street address, city, state and ZIP code.')

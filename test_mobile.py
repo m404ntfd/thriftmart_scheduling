@@ -41,6 +41,7 @@ def run():
                 assert page.evaluate("shiftDate(weekStart('2026-12-31'),7)") == '2027-01-03'
                 page.locator('#addDelivery').click()
                 expect(page.locator('#jobForm [name=type]')).to_have_value('Delivery')
+                expect(page.locator('#jobForm [name=status]')).to_have_value('Scheduled')
                 for name, value in {'customer':'Phone customer','phone':'555-0100','street':'123 Main Street','city':'Springfield','state':'IL','zip':'62701','items':'Sofa and two chairs'}.items():
                     page.locator(f'#jobForm [name={name}]').fill(value)
                 page.locator('#employeeSummary').click()

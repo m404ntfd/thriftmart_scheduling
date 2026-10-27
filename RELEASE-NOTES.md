@@ -1,5 +1,3 @@
-# Thrift Mart Dispatch 0.12.0
+# Thrift Mart Dispatch 0.12.1
 
-50-state dropdown defaults to Mississippi. Confirmed removed from form choices. Administrator employee password dialogs include scheduling and request-notification permissions. Request-only employees submit pending requests; scheduling staff can review and approve them with vehicle conflict checks. Opted-in scheduling staff see a blinking Requests button below the dashboard view buttons. Existing employees retain scheduling permission.
-
-Settings split into Phone Access, Backups, Updates, Vehicles, Employees, and Recent Changes tabs.
+Appointments show a red pickup header with right arrow/store symbols, or a blue delivery header with box/left arrow symbols, matching dashboard totals. The independent side bar continues to show status. The corner edit icon stays accessible in the header.

@@ -50,6 +50,7 @@ def run():
                 page.locator('#employeeOptions input[value=Manager]').check()
                 page.locator('#save').click()
                 expect(page.locator('#jobs')).to_contain_text('Phone customer')
+                expect(page.locator('#jobs .typeDelivery')).to_contain_text('DELIVERY')
                 expect(page.locator('#jobs')).to_contain_text('Alex')
                 expect(page.locator('#jobs')).to_contain_text('Manager')
                 expect(page.locator('#jobs a[href^="tel:"]')).to_have_attribute('href','tel:5550100')

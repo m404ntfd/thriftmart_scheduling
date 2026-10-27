@@ -1,11 +1,12 @@
-# Thrift Mart Dispatch 0.5.0
+# Thrift Mart Dispatch 0.6.0
 
-- Administrators can change an employee or administrator password in the server web interface under **Settings → Employee accounts → Change password**.
-- Remote Manager has a native **Change a user’s password** button and user selector.
-- Requires matching passwords of 8–256 characters. Password changes sign that user out on all devices, including the current session when changing your own password. The audit log records the action without storing the password.
-- Added an administrator **Update server** button in the server navigation. It checks GitHub and offers **Install update & restart** when a newer version is available.
-- The installer includes a **Manage or Update Thrift Mart Dispatch Server** shortcut. It opens local server administration with localhost selected, including server-update buttons.
+- Added a native **Thrift Mart Dispatch Server** desktop window with a white box-truck icon.
+- The server shortcut, application window, taskbar and system tray use the truck icon.
+- Minimize, the window's X button, and **Minimize to tray** hide the window while keeping the server running.
+- Double-click the truck tray icon to reopen. Right-click for the server window, schedule, administration/update controls, or **Exit server**.
+- Exit confirms and shuts down the server safely. Closing Remote Manager continues to leave the server running.
+- Server console output is captured in `data/server-console.log`, accessible through **Open server log**.
 
-Download **Thrift-Mart-Dispatch-Setup-v0.5.0.exe** and choose Server, Remote Manager, or Both. The runtime is bundled. Close the running server before running the installer and preserve the existing data folder.
+Run **Thrift-Mart-Dispatch-Setup-v0.6.0.exe** once on the server computer to install the new desktop/tray host and shortcuts. Stop the previous server before upgrading; preserve the existing data folder. A server-code-only update cannot install the new desktop executable.
 
-Existing 0.4 servers can receive the server/web-interface changes using their in-app updater. Run the 0.5 installer on computers using Remote Manager to get its new native password controls and the new server administration shortcut. OneDrive backups and recovery remain available.
+If Windows hides the tray icon, look under the taskbar's hidden-icons arrow. Keeping the server in the tray does not prevent Windows from sleeping; keep the server PC awake. Runtime is bundled in the unified installer.

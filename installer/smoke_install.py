@@ -22,3 +22,18 @@ with tempfile.TemporaryDirectory() as data:
  finally:
   subprocess.run(['taskkill','/PID',str(p.pid),'/T','/F'],capture_output=True)
   p.wait()
+
+# Test the installed GUI host, real Windows tray, hide/show behavior, and safe exit.
+with tempfile.TemporaryDirectory() as data:
+ with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
+ p=subprocess.Popen([str(root/'Thrift Mart Dispatch Server.exe'),'--smoke-test'],cwd=root,env={**os.environ,'DISPATCH_DATA':data,'DISPATCH_PORT':str(port)})
+ try:
+  assert p.wait(timeout=75)==0, 'Tray host smoke test failed'
+  c=Client(f'127.0.0.1:{port}')
+  try:c.probe()
+  except Exception:pass
+  else:raise AssertionError('Tray Exit left the server running')
+  print('Truck-icon GUI, tray minimize/restore, continued access and graceful exit passed.')
+ finally:
+  if p.poll() is None:
+   subprocess.run(['taskkill','/PID',str(p.pid),'/T','/F'],capture_output=True);p.wait()

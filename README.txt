@@ -1,8 +1,8 @@
-THRIFT MART DISPATCH SERVER — 0.5.0
+THRIFT MART DISPATCH SERVER — 0.6.0
 
-Use Thrift-Mart-Dispatch-Setup-v0.5.0.exe for a normal installation. Choose Server,
+Use Thrift-Mart-Dispatch-Setup-v0.6.0.exe for a normal installation. Choose Server,
 Remote Manager or Both. The installer includes the required Python runtime.
-Open Thrift Mart Dispatch Server from the Start menu. Keep its window open.
+Open Thrift Mart Dispatch Server from the Start menu. Minimize or click X to keep it running in the system tray.
 First setup: http://localhost:8080 on the server PC. Create the administrator,
 then add vehicles and employees. Phones use the staff-network address printed
 in the server window. Allow the server on a trusted PRIVATE Windows network.
@@ -20,7 +20,7 @@ Do not place the live data folder itself in OneDrive.
 
 RESTORE
 On a replacement PC install Server, download a backup ZIP from OneDrive, and
-close the server window. Open Restore Thrift Mart Dispatch Server from the
+choose Exit server from the truck tray menu. Open Restore Thrift Mart Dispatch Server from the
 Start menu. Select the ZIP. Existing data is preserved in data/restore-safety.
 Start the server, sign in using an account from the backup, then reconnect and
 enable the new OneDrive backup folder. Restore disables automatic cloud backup
@@ -53,3 +53,9 @@ The selected user is signed out everywhere. No password is recorded in the log.
 UPDATE BUTTON
 Use Update server in the administrator navigation, or open Manage or Update
 Thrift Mart Dispatch Server from the Start menu for local administration.
+
+TRAY
+Double-click the white truck tray icon to show the server window. Right-click for
+Open schedule, Manage / update server, and Exit server. X only hides the window.
+Exit server stops scheduling after confirmation. The installer must be run once
+to install this desktop host; code-only updates do not add executable files.

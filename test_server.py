@@ -20,6 +20,7 @@ class Tests(unittest.TestCase):
   except urllib.error.HTTPError as e:return e.code,json.load(e)
  def test_workflow(self):
   self.assertTrue(self.call('session')[1]['setup'])
+  self.assertEqual(self.call('local/stop',{'token':'invalid'})[0],403)
   anon=urllib.request.build_opener()
   self.assertEqual(self.call('state',client=anon)[0],401)
   self.assertEqual(self.call('setup',{'name':'Manager','password':'testpassword'})[0],200)

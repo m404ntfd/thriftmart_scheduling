@@ -1,0 +1,130 @@
+"""Windows tray host for Thrift Mart Dispatch Server; data/code stay external."""
+import ctypes,json,os,queue,secrets,socket,subprocess,sys,threading,time,urllib.request,webbrowser
+from pathlib import Path
+import tkinter as tk
+from tkinter import ttk,messagebox
+from PIL import Image,ImageTk
+import pystray
+NAME='Thrift Mart Dispatch Server'
+ROOT=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parent
+ASSETS=Path(getattr(sys,'_MEIPASS',ROOT))/'assets'
+DATA=Path(os.environ.get('DISPATCH_DATA',ROOT/'data'))
+PORT=int(os.environ.get('DISPATCH_PORT','8080'))
+URL=f'http://127.0.0.1:{PORT}'
+
+def request(path,data=None):
+    req=urllib.request.Request(URL+'/api/'+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json','X-Dispatch':'1'})
+    with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req,timeout=4) as response:return json.load(response)
+
+class ServerWindow:
+    def __init__(self,root,smoke=False):
+        self.root=root;self.smoke=smoke;self.process=None;self.log=None;self.stopping=False;self.tray_ready=False;self.queue=queue.Queue();self.token=secrets.token_urlsafe(48);self.deadline=time.time()+45;self.smoke_done=False;self.notice=None
+        DATA.mkdir(parents=True,exist_ok=True)
+        root.title(NAME);root.geometry('660x430');root.minsize(600,400);root.iconbitmap(str(ASSETS/'dispatch.ico'))
+        root.protocol('WM_DELETE_WINDOW',self.hide);root.bind('<Unmap>',self.on_minimize)
+        style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=10);style.configure('TLabel',font=('Segoe UI',10))
+        f=ttk.Frame(root,padding=24);f.pack(fill='both',expand=True)
+        self.picture=ImageTk.PhotoImage(Image.open(ASSETS/'dispatch.png').resize((72,72)))
+        top=ttk.Frame(f);top.pack(fill='x');ttk.Label(top,image=self.picture).pack(side='left',padx=(0,16));ttk.Label(top,text='Thrift Mart\nDispatch Server',font=('Segoe UI',20,'bold')).pack(side='left')
+        self.status=tk.StringVar(value='Starting server…');ttk.Label(f,textvariable=self.status,wraplength=600).pack(anchor='w',pady=(20,12))
+        try:addresses=[a for a in socket.gethostbyname_ex(socket.gethostname())[2] if not a.startswith('127.')]
+        except OSError:addresses=[]
+        address_text='This computer: '+URL+'\nStaff network: '+(', '.join(f'http://{a}:{PORT}' for a in addresses) or 'Check this computer’s network address')
+        ttk.Label(f,text=address_text,wraplength=600).pack(anchor='w')
+        row=ttk.Frame(f);row.pack(fill='x',pady=18)
+        ttk.Button(row,text='Open schedule',command=self.open_schedule).pack(side='left')
+        ttk.Button(row,text='Manage / update server',command=self.manage).pack(side='left',padx=8)
+        ttk.Button(row,text='Minimize to tray',command=self.hide).pack(side='left')
+        ttk.Label(f,text='Minimize or close this window to keep the server running in the tray.\nDouble-click the truck icon to reopen. Use Exit server to stop it.',wraplength=600).pack(anchor='w')
+        bottom=ttk.Frame(f);bottom.pack(fill='x',pady=14)
+        ttk.Button(bottom,text='Open server log',command=self.open_log).pack(side='left')
+        ttk.Button(bottom,text='Exit server',command=self.ask_exit).pack(side='right')
+        self.icon=pystray.Icon('ThriftMartDispatch',Image.open(ASSETS/'dispatch.png'),NAME,pystray.Menu(
+            pystray.MenuItem('Open server window',lambda icon,item:self.queue.put(('show',None)),default=True),
+            pystray.MenuItem('Open schedule',lambda icon,item:self.queue.put(('schedule',None))),
+            pystray.MenuItem('Manage / update server',lambda icon,item:self.queue.put(('manage',None))),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem('Exit server',lambda icon,item:self.queue.put(('exit',None)))))
+        def ready(icon):icon.visible=True;self.queue.put(('ready',None))
+        def tray():
+            try:self.icon.run(setup=ready)
+            except Exception as e:self.queue.put(('tray_error',str(e)))
+        threading.Thread(target=tray,daemon=True).start()
+        self.start();root.after(150,self.poll)
+    def start(self):
+        try:
+            logpath=DATA/'server-console.log'
+            if logpath.exists() and logpath.stat().st_size>5*1024*1024:logpath.replace(DATA/'server-console.previous.log')
+            self.log=logpath.open('ab',buffering=0)
+            python=ROOT/'runtime/python.exe'
+            if not python.exists():raise RuntimeError('The bundled runtime is missing. Run the latest installer again.')
+            env={**os.environ,'DISPATCH_CONTROL_TOKEN':self.token,'PYTHONUNBUFFERED':'1'}
+            # Do not let the frozen host's DLL directory override the external runtime.
+            ctypes.windll.kernel32.SetDllDirectoryW(None)
+            self.process=subprocess.Popen([str(python),str(ROOT/'launcher.py')],cwd=ROOT,env=env,stdout=self.log,stderr=self.log,creationflags=subprocess.CREATE_NO_WINDOW)
+        except Exception as e:self.status.set('Unable to start: '+str(e))
+    def on_minimize(self,event):
+        if event.widget is self.root and self.root.state()=='iconic':self.root.after(0,self.hide)
+    def hide(self):
+        if not self.tray_ready:
+            self.root.deiconify();self.status.set('Tray is not ready. Keep this window open for now.');return
+        self.root.withdraw()
+    def show(self):self.root.deiconify();self.root.lift();self.root.focus_force()
+    def open_schedule(self):webbrowser.open(URL)
+    def manage(self):
+        try:subprocess.Popen([str(ROOT/'Thrift Mart Dispatch Remote Manager.exe'),'--local-server'],env={**os.environ,'PYINSTALLER_RESET_ENVIRONMENT':'1'})
+        except OSError as e:messagebox.showerror(NAME,'Cannot open administration: '+str(e))
+    def open_log(self):os.startfile(DATA/'server-console.log')
+    def ask_exit(self):
+        if self.stopping:return
+        if messagebox.askyesno(NAME,'Stop the server? Employees will not be able to access the schedule until you start it again.'):
+            self.stop()
+    def stop(self):
+        if not self.process or self.process.poll() is not None:self.finish();return
+        self.notice=None;self.stopping=True;self.status.set('Stopping server safely…')
+        def worker():
+            try:
+                request('local/stop',{'token':self.token});self.process.wait(timeout=20);self.queue.put(('stopped',None))
+            except Exception as e:self.queue.put(('stop_error',str(e)))
+        threading.Thread(target=worker,daemon=True).start()
+    def finish(self):
+        self.icon.stop()
+        if self.log:self.log.close()
+        self.root.destroy()
+    def poll(self):
+        try:
+            while True:
+                kind,value=self.queue.get_nowait()
+                if kind=='show':self.show()
+                elif kind=='schedule':self.open_schedule()
+                elif kind=='manage':self.manage()
+                elif kind=='exit':self.ask_exit()
+                elif kind=='ready':self.tray_ready=True
+                elif kind=='tray_error':self.tray_ready=False;self.show();self.notice='Tray is unavailable: '+value;self.status.set(self.notice)
+                elif kind=='stopped':self.finish();return
+                elif kind=='stop_error':self.stopping=False;self.show();self.notice='Could not stop safely. Wait for any update to finish, then try Exit server again.';self.status.set(self.notice)
+        except queue.Empty:pass
+        if self.process and self.process.poll() is not None and not self.stopping:
+            self.status.set('Server stopped. Check the log, then close and reopen the application.');self.show()
+        elif self.process and not self.stopping and not self.notice:
+            self.status.set('Server running • minimize safely to the system tray')
+        if self.smoke and not self.smoke_done:
+            try:
+                r=request('session')
+                if r.get('application')=='thrift-mart-dispatch' and self.tray_ready:
+                    self.hide();self.root.update_idletasks()
+                    assert self.root.state()=='withdrawn'
+                    assert request('session')['application']=='thrift-mart-dispatch'
+                    self.show();self.root.update_idletasks();assert self.root.state()=='normal'
+                    self.smoke_done=True;self.stop()
+            except Exception:
+                if time.time()>self.deadline:os._exit(2)
+        self.root.after(300,self.poll)
+
+def main():
+    kernel=ctypes.windll.kernel32;kernel.CreateMutexW.restype=ctypes.c_void_p
+    mutex=kernel.CreateMutexW(None,False,'ThriftMartDispatchTray')
+    if kernel.GetLastError()==183:
+        root=tk.Tk();root.withdraw();messagebox.showinfo(NAME,'The server application is already open. Double-click its white truck icon in the system tray.');root.destroy();return
+    root=tk.Tk();ServerWindow(root,smoke='--smoke-test' in sys.argv);root.mainloop()
+if __name__=='__main__':main()

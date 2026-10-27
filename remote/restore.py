@@ -12,7 +12,7 @@ def data_lock(data):
                 import msvcrt;msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1)
             else:
                 import fcntl;fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        except OSError:raise ValueError('The server is running. Close its server window before restoring.')
+        except OSError:raise ValueError('The server is running. Choose Exit server from its truck tray menu before restoring.')
         yield
     finally:f.close()
 
@@ -61,7 +61,7 @@ def restore_window(data):
     root=tk.Tk();root.title('Restore Thrift Mart Dispatch Server');root.geometry('650x300')
     frame=ttk.Frame(root,padding=24);frame.pack(fill='both',expand=True)
     ttk.Label(frame,text='Restore server from OneDrive backup',font=('Segoe UI',16,'bold')).pack(anchor='w')
-    ttk.Label(frame,text='Close the server window first. Choose a downloaded backup ZIP from OneDrive.\nThis replaces appointments, accounts, vehicles and settings with the backup.\nCurrent data is saved separately before replacement.',wraplength=590).pack(anchor='w',pady=16)
+    ttk.Label(frame,text='Choose Exit server from the truck tray menu first. Choose a downloaded backup ZIP from OneDrive.\nThis replaces appointments, accounts, vehicles and settings with the backup.\nCurrent data is saved separately before replacement.',wraplength=590).pack(anchor='w',pady=16)
     status=tk.StringVar(value='Destination: '+str(data));ttk.Label(frame,textvariable=status,wraplength=590).pack(anchor='w')
     def choose():
         path=filedialog.askopenfilename(title='Select dispatch backup',filetypes=[('Dispatch backup ZIP','*.zip')])

@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.5.0"
+#define AppVersion "0.6.0"
 #endif
 [Setup]
 AppId={{7412358D-0556-4978-AEA4-8297976D4992}
@@ -16,7 +16,8 @@ OutputBaseFilename=Thrift-Mart-Dispatch-Setup-v{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-AppMutex=ThriftMartDispatchServer
+SetupIconFile=..\assets\dispatch.ico
+AppMutex=ThriftMartDispatchServer,ThriftMartDispatchTray
 UninstallDisplayName=Thrift Mart Dispatch
 DisableProgramGroupPage=yes
 [Types]
@@ -30,6 +31,8 @@ Name: "remote"; Description: "Thrift Mart Dispatch Remote Manager"; Types: remot
 Name: "desktop"; Description: "Create desktop shortcuts"; Flags: unchecked
 Name: "startup"; Description: "Start the server when I sign in to Windows"; Components: server; Flags: unchecked
 [Files]
+Source: "..\dist\Thrift Mart Dispatch Server.exe"; DestDir: "{app}"; Components: server; Flags: ignoreversion
+Source: "..\assets\dispatch.ico"; DestDir: "{app}\assets"; Components: server; Flags: ignoreversion
 Source: "..\server.py"; DestDir: "{app}"; Components: server; Flags: ignoreversion
 Source: "..\updater.py"; DestDir: "{app}"; Components: server; Flags: ignoreversion
 Source: "..\launcher.py"; DestDir: "{app}"; Components: server; Flags: ignoreversion
@@ -44,12 +47,12 @@ Source: "..\dist\Thrift Mart Dispatch Remote Manager.exe"; DestDir: "{app}"; Fla
 Source: "..\remote\README.txt"; DestDir: "{app}"; DestName: "Remote-Manager-README.txt"; Flags: ignoreversion
 [Icons]
 Name: "{group}\Manage or Update Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Parameters: "--local-server"; Components: server
-Name: "{group}\Thrift Mart Dispatch Server"; Filename: "{app}\Start-Thrift-Mart-Dispatch-Server.bat"; WorkingDir: "{app}"; Components: server
+Name: "{group}\Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Server.exe"; WorkingDir: "{app}"; Components: server
 Name: "{group}\Thrift Mart Dispatch Remote Manager"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Components: remote
 Name: "{group}\Restore Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Parameters: "--restore-dir ""{app}\data"""; Components: server
-Name: "{userdesktop}\Thrift Mart Dispatch Server"; Filename: "{app}\Start-Thrift-Mart-Dispatch-Server.bat"; WorkingDir: "{app}"; Components: server; Tasks: desktop
+Name: "{userdesktop}\Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Server.exe"; WorkingDir: "{app}"; Components: server; Tasks: desktop
 Name: "{userdesktop}\Thrift Mart Dispatch Remote Manager"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Components: remote; Tasks: desktop
-Name: "{userstartup}\Thrift Mart Dispatch Server"; Filename: "{app}\Start-Thrift-Mart-Dispatch-Server.bat"; WorkingDir: "{app}"; Components: server; Tasks: startup
+Name: "{userstartup}\Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Server.exe"; WorkingDir: "{app}"; Components: server; Tasks: startup
 [Run]
-Filename: "{app}\Start-Thrift-Mart-Dispatch-Server.bat"; Description: "Start Thrift Mart Dispatch Server"; WorkingDir: "{app}"; Components: server; Flags: postinstall nowait skipifsilent shellexec unchecked
+Filename: "{app}\Thrift Mart Dispatch Server.exe"; Description: "Start Thrift Mart Dispatch Server"; WorkingDir: "{app}"; Components: server; Flags: postinstall nowait skipifsilent shellexec unchecked
 Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Description: "Open Thrift Mart Dispatch Remote Manager"; Components: remote; Flags: postinstall nowait skipifsilent unchecked

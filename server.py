@@ -16,6 +16,7 @@ LOCK=threading.RLock()
 SESSIONS={}
 ATTEMPTS={}
 RESTART=False
+STOPPING=False
 STARTED=time.time()
 
 @contextmanager
@@ -155,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise Problem('Not found',404)
         except Problem as e: self.send({'error':e.message},e.status)
     def do_POST(self):
-        global RESTART
+        global RESTART, STOPPING
         try:
             if self.headers.get('X-Dispatch')!='1': raise Problem('Invalid request.',403)
             origin=self.headers.get('Origin')
@@ -165,7 +166,14 @@ class Handler(BaseHTTPRequestHandler):
             d=json.loads(self.rfile.read(n))
             if not isinstance(d,dict): raise Problem('Invalid request.')
             with LOCK, connect() as c:
-                if RESTART: raise Problem('Update is restarting the server. Please wait and sign in again.',503)
+                if RESTART or STOPPING: raise Problem('Update is restarting the server. Please wait and sign in again.',503)
+                if self.path=='/api/local/stop':
+                    expected=os.environ.get('DISPATCH_CONTROL_TOKEN','')
+                    if self.client_address[0] not in ('127.0.0.1','::1') or not expected or not hmac.compare_digest(str(d.get('token','')),expected): raise Problem('Local server controller required.',403)
+                    STOPPING=True
+                    self.send({'ok':True})
+                    threading.Thread(target=self.server.shutdown,daemon=True).start()
+                    return
                 if self.path in ('/api/setup','/api/login'):
                     name=str(d.get('name','')).strip(); p=str(d.get('password',''))
                     if self.path=='/api/setup':

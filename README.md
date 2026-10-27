@@ -6,7 +6,7 @@ The installer offers **Server**, **Remote Manager**, or **Both**, with the requi
 
 ## Store computer: Server
 
-Choose **Thrift Mart Dispatch Server**, then open its Start-menu shortcut and keep it running. On that PC visit `http://localhost:8080` to create the first administrator. Add vehicles and employees in Settings. Phones use the staff-network address printed in the server window.
+Choose **Thrift Mart Dispatch Server**, then open its white-truck Start-menu shortcut. The server runs in a desktop window and can be minimized to the system tray. On that PC visit `http://localhost:8080` to create the first administrator. Add vehicles and employees in Settings. Phones use the staff-network address printed in the server window.
 
 ## Other computer: Remote Manager
 
@@ -22,13 +22,13 @@ Each ZIP contains the schedule database (appointments, accounts, vehicles and au
 
 1. Install the Server with the same installer and sign into OneDrive.
 2. Download a complete backup ZIP locally from OneDrive.
-3. Close the server window. Open **Restore Thrift Mart Dispatch Server** in the Start menu.
+3. Choose **Exit server** from the truck tray menu. Open **Restore Thrift Mart Dispatch Server** in the Start menu.
 4. Select the ZIP and confirm replacement. Current data is kept in a local safety folder first.
 5. Start the server and sign in using an account from the backup. Reconnect and enable the new PC's OneDrive folder in Settings.
 
 ## Existing 0.2 users
 
-Close the server and keep a separate copy of `data/`. Install the Server into the existing program folder, or copy `data/` into the new installation folder while the server is stopped. This one-time installer upgrade adds the launcher, renamed shortcuts and restore tool. Later server code updates can use Settings or Remote Manager; updating the Remote Manager/installer requires rerunning the latest unified installer.
+Use **Exit server** (or close the old console) and keep a separate copy of `data/`. Install the Server into the existing program folder, or copy `data/` into the new installation folder while the server is stopped. This one-time installer upgrade adds the launcher, renamed shortcuts and restore tool. Later server code updates can use Settings or Remote Manager; updating the Remote Manager/installer requires rerunning the latest unified installer.
 
 The legacy update asset remains named `Store-Dispatch-Update.zip` for compatibility. Program code updates do not overwrite customer data. The uninstaller leaves runtime-generated data and external backups in place.
 
@@ -45,3 +45,9 @@ Server interface: **Settings → Employee accounts → Change password**. Remote
 The server navigation includes **Update server**, which checks GitHub and offers installation when a newer release is available. The Server install also adds a **Manage or Update Thrift Mart Dispatch Server** Start-menu shortcut with native update controls pointed at localhost. If using a custom port, edit the address before connecting.
 
 Use the unified installer to update Remote Manager itself; the server-update action updates server code only.
+
+## Server tray behavior (0.6)
+
+The white box-truck icon identifies the server on the desktop/taskbar and in the tray. Minimize, X, or **Minimize to tray** hides its window without stopping scheduling. Double-click the tray icon to reopen; right-click for schedule, management/update controls, or **Exit server**. Exit asks before stopping the server. If the icon is hidden, expand the taskbar's hidden icons.
+
+Install the full 0.6 installer once to add the tray executable. The code-only updater does not replace desktop executables. Logs are under `data/server-console.log`. Tray operation still requires the Windows user to remain signed in and the PC to stay awake.

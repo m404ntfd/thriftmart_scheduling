@@ -37,3 +37,11 @@ The legacy update asset remains named `Store-Dispatch-Update.zip` for compatibil
 Use trusted staff networking only; local HTTP is unencrypted. Do not forward the port to the Internet. Remote Manager cannot turn on a PC or start a stopped server. Keep the server awake; optional automatic startup occurs after Windows sign-in, not before. The installer is unsigned. OneDrive must be running and signed in to sync the backup folder.
 
 Run `python -m unittest test_server test_updater test_remote` for API, update, access-control and backup/restore tests. CI also builds the Windows executable/installer, checks GUI startup and tests an installed server with bundled Python.
+
+## Administrator password changes and server updates
+
+Server interface: **Settings → Employee accounts → Change password**. Remote Manager: **Change a user’s password**. Select the user and enter/confirm the new password. This signs the affected user out on all devices; administrators changing their own password sign in again too. Passwords are never shown in the activity log.
+
+The server navigation includes **Update server**, which checks GitHub and offers installation when a newer release is available. The Server install also adds a **Manage or Update Thrift Mart Dispatch Server** Start-menu shortcut with native update controls pointed at localhost. If using a custom port, edit the address before connecting.
+
+Use the unified installer to update Remote Manager itself; the server-update action updates server code only.

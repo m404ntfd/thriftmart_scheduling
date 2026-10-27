@@ -1,6 +1,6 @@
-THRIFT MART DISPATCH SERVER — 0.4.0
+THRIFT MART DISPATCH SERVER — 0.5.0
 
-Use Thrift-Mart-Dispatch-Setup-v0.4.0.exe for a normal installation. Choose Server,
+Use Thrift-Mart-Dispatch-Setup-v0.5.0.exe for a normal installation. Choose Server,
 Remote Manager or Both. The installer includes the required Python runtime.
 Open Thrift Mart Dispatch Server from the Start menu. Keep its window open.
 First setup: http://localhost:8080 on the server PC. Create the administrator,
@@ -44,3 +44,12 @@ SOURCE USERS
 Python 3.11+ with the standard library can run launcher.py directly. The Windows
 installer bundles Python, so installed users do not need to set that up.
 The legacy Start-Store-Dispatch.bat remains an alias for the renamed launcher.
+
+PASSWORDS
+Administrators can change passwords in Settings > Employee accounts, or using
+Change a user's password in Remote Manager. Both password entries must match.
+The selected user is signed out everywhere. No password is recorded in the log.
+
+UPDATE BUTTON
+Use Update server in the administrator navigation, or open Manage or Update
+Thrift Mart Dispatch Server from the Start menu for local administration.

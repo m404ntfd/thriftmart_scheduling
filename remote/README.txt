@@ -1,4 +1,4 @@
-THRIFT MART DISPATCH REMOTE MANAGER — 0.4.0
+THRIFT MART DISPATCH REMOTE MANAGER — 0.5.0
 
 On a SECOND Windows computer on the same trusted staff network:
 1. Run the unified Thrift Mart Dispatch installer and choose Remote Manager.
@@ -8,7 +8,7 @@ On a SECOND Windows computer on the same trusted staff network:
 4. Test connection, then sign in with an administrator account from the server.
    Create the first administrator locally on the server computer first.
 
-Requires Thrift Mart Dispatch Server 0.4.0 or later. Restart requires a full 0.4.0
+Requires Thrift Mart Dispatch Server 0.5.0 or later. Restart requires a full 0.5.0
 server installation (new launcher); older launchers can still install server updates.
 
 FEATURES
@@ -31,3 +31,8 @@ Configuration: %APPDATA%\ThriftMartDispatchRemoteManager\config.json
 
 For source users: with Python + Tk installed, run python remote_manager.py from
 this folder with client.py beside it. No extra Python packages are required.
+
+PASSWORD CHANGES
+After administrator sign-in, click Change a user's password, select a user, and
+enter/confirm a password of 8–256 characters. Their existing sessions are ended.
+If changing your own administrator password, sign in again with the new password.

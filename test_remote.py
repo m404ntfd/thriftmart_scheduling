@@ -45,3 +45,32 @@ class AddressTests(unittest.TestCase):
   for value in ('file:///foo','http://user:pass@server','server/path','http://server:99999','http://server?q=a'):
    with self.assertRaises(ValueError):normalize_address(value)
 if __name__=='__main__':unittest.main()
+
+class PasswordTests(test_server.Tests):
+ def test_admin_password_changes(self):
+  self.assertEqual(self.call('setup',{'name':'Boss','password':'OriginalBossPass'})[0],200)
+  self.assertEqual(self.call('user',{'name':'Worker','password':'OriginalWorkerPass'})[0],200)
+  base=f'127.0.0.1:{self.port}'
+  employee=Client(base);employee.request('login',{'name':'Worker','password':'OriginalWorkerPass'})
+  employee2=Client(base);employee2.request('login',{'name':'Worker','password':'OriginalWorkerPass'})
+  admin2=Client(base);admin2.login('Boss','OriginalBossPass')
+  payload={'name':'Worker','password':'ReplacementWorkerPass','confirm':'ReplacementWorkerPass'}
+  with self.assertRaisesRegex(ValueError,'Administrator'):employee.request('admin/password',payload)
+  with self.assertRaisesRegex(ValueError,'Administrator'):employee.request('admin/users')
+  self.assertEqual(self.call('admin/password',{**payload,'confirm':'wrong'})[0],400)
+  self.assertEqual(self.call('admin/password',{**payload,'password':'short','confirm':'short'})[0],400)
+  self.assertEqual(self.call('admin/password',{**payload,'name':'Missing'})[0],404)
+  self.assertEqual(self.call('admin/password',payload)[1],{'ok':True,'signed_out':False})
+  for c in (employee,employee2):
+   with self.assertRaisesRegex(ValueError,'sign in'):c.request('state')
+  with self.assertRaisesRegex(ValueError,'Incorrect'):employee.request('login',{'name':'Worker','password':'OriginalWorkerPass'})
+  employee.request('login',{'name':'Worker','password':'ReplacementWorkerPass'})
+  self.assertEqual(employee.request('session')['user']['name'],'Worker')
+  audit=str(self.call('audit')[1]);self.assertIn('Password changed for: Worker',audit);self.assertNotIn('ReplacementWorkerPass',audit)
+  r=self.call('admin/password',{'name':'boss','password':'ReplacementBossPass','confirm':'ReplacementBossPass'})
+  self.assertTrue(r[1]['signed_out'])
+  self.assertEqual(self.call('state')[0],401)
+  with self.assertRaisesRegex(ValueError,'sign in'):admin2.request('admin/users')
+  self.assertEqual(self.call('login',{'name':'Boss','password':'ReplacementBossPass'})[0],200)
+  self.assertEqual(len(self.call('admin/users')[1]['users']),2)
+ def test_workflow(self):pass

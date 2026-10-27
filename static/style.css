@@ -5,3 +5,5 @@
 @media(max-width:650px){.brand{font-size:16px}.brand small{font-size:8px}header{gap:8px}#connection{max-width:110px;font-size:10px}}
 
 #backupEnabled{width:auto;min-height:0;margin-right:8px}#cloudBackup{margin-top:12px}
+
+#passwordError{color:#a02c2c}#users .listRow{display:flex;align-items:center;justify-content:space-between;gap:12px}

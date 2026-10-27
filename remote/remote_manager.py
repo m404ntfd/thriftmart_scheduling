@@ -5,21 +5,21 @@ import tkinter as tk
 from tkinter import ttk,messagebox
 from client import Client
 NAME='Thrift Mart Dispatch Remote Manager'
-VERSION='0.4.0'
+VERSION='0.5.0'
 CONFIG=Path(os.environ.get('APPDATA',Path.home()))/'ThriftMartDispatchRemoteManager'/'config.json'
 
 class App:
-    def __init__(self,root):
+    def __init__(self,root,local=False):
         self.root=root;self.client=None;self.release=None;self.busy=False;self.results=queue.Queue()
-        root.title(NAME);root.geometry('760x750');root.minsize(640,650)
+        root.title('Thrift Mart Dispatch Server — Administration' if local else NAME);root.geometry('800x830');root.minsize(720,760)
         style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=9);style.configure('TLabel',font=('Segoe UI',10));style.configure('Title.TLabel',font=('Segoe UI',22,'bold'));style.configure('TEntry',padding=7)
         frame=ttk.Frame(root,padding=24);frame.pack(fill='both',expand=True)
         ttk.Label(frame,text='Thrift Mart Dispatch',style='Title.TLabel').pack(anchor='w')
-        ttk.Label(frame,text='Remote Manager • '+VERSION+'  |  Staff network').pack(anchor='w',pady=(2,16))
+        ttk.Label(frame,text=('Server administration' if local else 'Remote Manager')+' • '+VERSION+'  |  Staff network').pack(anchor='w',pady=(2,16))
         box=ttk.LabelFrame(frame,text='Connect to your store server',padding=12);box.pack(fill='x')
         try:saved=json.loads(CONFIG.read_text())
         except (OSError,ValueError):saved={}
-        self.address=tk.StringVar(value=saved.get('address',''));self.username=tk.StringVar(value=saved.get('username',''));self.password=tk.StringVar()
+        self.address=tk.StringVar(value='http://localhost:8080' if local else saved.get('address',''));self.username=tk.StringVar(value=saved.get('username',''));self.password=tk.StringVar()
         for label,var,secret in [('Server IP or computer name',self.address,False),('Administrator name',self.username,False),('Password',self.password,True)]:
             row=ttk.Frame(box);row.pack(fill='x',pady=3);ttk.Label(row,text=label,width=27).pack(side='left');ttk.Entry(row,textvariable=var,show='•' if secret else '').pack(side='left',fill='x',expand=True)
         ttk.Label(box,text='Example: 192.168.1.50:8080 • Passwords are never saved.').pack(anchor='w',pady=5)
@@ -33,6 +33,7 @@ class App:
         ttk.Button(actions,text='Refresh status',command=self.refresh).pack(side='left',padx=6)
         ttk.Button(actions,text='OneDrive backup',command=self.backup).pack(side='left')
         ttk.Button(actions,text='Restart server',command=self.restart).pack(side='left',padx=6)
+        ttk.Button(frame,text='Change a user’s password',command=self.passwords).pack(anchor='w',pady=(8,0))
         updates=ttk.LabelFrame(frame,text='Server updates from GitHub',padding=12);updates.pack(fill='both',expand=True,pady=16)
         row=ttk.Frame(updates);row.pack(fill='x');ttk.Button(row,text='Check for server updates',command=self.check).pack(side='left');self.install=ttk.Button(row,text='Install update & restart',command=self.install_update,state='disabled');self.install.pack(side='left',padx=8)
         self.notes=tk.Text(updates,height=7,wrap='word',font=('Segoe UI',10),state='disabled');self.notes.pack(fill='both',expand=True,pady=8)
@@ -90,6 +91,34 @@ class App:
         except ValueError as e:self.status.set(str(e))
     def backup(self):
         if self.require():self.run(lambda:self.client.request('admin/backup-now',{}),lambda r:self.status.set('Saved to server OneDrive folder (check sync): '+r['backup']))
+    def passwords(self):
+        if not self.require():return
+        def show(r):
+            self.status.set('Select the user whose password you want to change.')
+            dialog=tk.Toplevel(self.root);dialog.title('Change user password');dialog.geometry('520x400');dialog.transient(self.root);dialog.grab_set()
+            f=ttk.Frame(dialog,padding=20);f.pack(fill='both',expand=True)
+            ttk.Label(f,text='Administrator password reset',font=('Segoe UI',16,'bold')).pack(anchor='w')
+            ttk.Label(f,text='The selected user will be signed out on all devices.',wraplength=470).pack(anchor='w',pady=10)
+            selected=tk.StringVar();first=tk.StringVar();second=tk.StringVar();error=tk.StringVar()
+            ttk.Label(f,text='User').pack(anchor='w');combo=ttk.Combobox(f,textvariable=selected,values=[u['name'] for u in r['users']],state='readonly');combo.pack(fill='x',pady=4)
+            if r['users']:combo.current(0)
+            for label,var in [('New password',first),('Confirm new password',second)]:
+                ttk.Label(f,text=label).pack(anchor='w');ttk.Entry(f,textvariable=var,show='•').pack(fill='x',pady=4)
+            ttk.Label(f,textvariable=error,wraplength=470).pack(anchor='w',pady=6)
+            def save():
+                if not self.require():return
+                if not selected.get():error.set('Select a user.');return
+                if not 8<=len(first.get())<=256:error.set('Use 8–256 characters.');return
+                if first.get()!=second.get():error.set('The passwords do not match.');return
+                payload={'name':selected.get(),'password':first.get(),'confirm':second.get()}
+                first.set('');second.set('');dialog.destroy()
+                def done(result):
+                    if result['signed_out']:
+                        self.client=None;self.release=None;self.install.config(state='disabled');self.details.set('Sign in again with your new password.')
+                    self.status.set('Password changed. The user must sign in again on all devices.')
+                self.run(lambda:self.client.request('admin/password',payload),done)
+            ttk.Button(f,text='Change password',command=save).pack(anchor='w')
+        self.run(lambda:self.client.request('admin/users'),show)
     def restart(self):
         if not self.require():return
         if not messagebox.askyesno(NAME,'Restart the server? Ask employees to save their appointments first. Everyone will be signed out.'):return
@@ -119,5 +148,5 @@ def main():
         restore_window(Path(sys.argv[sys.argv.index('--restore-dir')+1]));return
     if '--smoke-test' in sys.argv:
         root=tk.Tk();root.withdraw();App(root);root.update();root.destroy();return
-    root=tk.Tk();App(root);root.mainloop()
+    root=tk.Tk();App(root,local='--local-server' in sys.argv);root.mainloop()
 if __name__=='__main__':main()

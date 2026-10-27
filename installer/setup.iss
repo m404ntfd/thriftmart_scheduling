@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.4.0"
+#define AppVersion "0.5.0"
 #endif
 [Setup]
 AppId={{7412358D-0556-4978-AEA4-8297976D4992}
@@ -43,6 +43,7 @@ Source: "..\runtime\*"; DestDir: "{app}\runtime"; Components: server; Flags: ign
 Source: "..\dist\Thrift Mart Dispatch Remote Manager.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\remote\README.txt"; DestDir: "{app}"; DestName: "Remote-Manager-README.txt"; Flags: ignoreversion
 [Icons]
+Name: "{group}\Manage or Update Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Parameters: "--local-server"; Components: server
 Name: "{group}\Thrift Mart Dispatch Server"; Filename: "{app}\Start-Thrift-Mart-Dispatch-Server.bat"; WorkingDir: "{app}"; Components: server
 Name: "{group}\Thrift Mart Dispatch Remote Manager"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Components: remote
 Name: "{group}\Restore Thrift Mart Dispatch Server"; Filename: "{app}\Thrift Mart Dispatch Remote Manager.exe"; Parameters: "--restore-dir ""{app}\data"""; Components: server

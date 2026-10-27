@@ -1,14 +1,11 @@
-# Thrift Mart Dispatch 0.4.0
+# Thrift Mart Dispatch 0.5.0
 
-One Windows installer for **Thrift Mart Dispatch Server**, **Thrift Mart Dispatch Remote Manager**, or **Both**. Required runtime included; no separate Python installation needed.
+- Administrators can change an employee or administrator password in the server web interface under **Settings → Employee accounts → Change password**.
+- Remote Manager has a native **Change a user’s password** button and user selector.
+- Requires matching passwords of 8–256 characters. Password changes sign that user out on all devices, including the current session when changing your own password. The audit log records the action without storing the password.
+- Added an administrator **Update server** button in the server navigation. It checks GitHub and offers **Install update & restart** when a newer version is available.
+- The installer includes a **Manage or Update Thrift Mart Dispatch Server** shortcut. It opens local server administration with localhost selected, including server-update buttons.
 
-- Server renamed and given a matching Start-menu shortcut.
-- Native Remote Manager connects over the trusted staff network for status, backups, restart and GitHub server updates. Schedule and settings editing opens in the browser.
-- Configurable OneDrive backup folder, hourly complete backups, manual backup button and last-result reporting. Backups include appointments, vehicles, employee accounts and settings. Keeps the latest 90 archives.
-- Start-menu restore tool for disaster recovery. Validates backups, preserves existing data before replacement, and prevents restoring while the server is running.
+Download **Thrift-Mart-Dispatch-Setup-v0.5.0.exe** and choose Server, Remote Manager, or Both. The runtime is bundled. Close the running server before running the installer and preserve the existing data folder.
 
-Download **Thrift-Mart-Dispatch-Setup-v0.4.0.exe** on each computer and choose its role. The separate `Store-Dispatch-Update.zip` asset is for the built-in updater, not first-time installation.
-
-For existing 0.2 users: close the server, preserve `data/`, and run the installer once to add the new launcher and restore utility. Install into the existing program folder or move the old data folder to the new one while stopped.
-
-OneDrive handles cloud synchronization; the program confirms local backup creation only. Verify the OneDrive synced status before relying on off-computer recovery. Local HTTP, trusted staff network only. Unsigned installer. On-site network/phone testing remains necessary.
+Existing 0.4 servers can receive the server/web-interface changes using their in-app updater. Run the 0.5 installer on computers using Remote Manager to get its new native password controls and the new server administration shortcut. OneDrive backups and recovery remain available.

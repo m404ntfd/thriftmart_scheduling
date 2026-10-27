@@ -135,6 +135,9 @@ class Handler(BaseHTTPRequestHandler):
                     except Problem: u=None
                     return self.send({'application':'thrift-mart-dispatch','name':'Thrift Mart Dispatch Server','version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin']},'local':self.client_address[0] in ('127.0.0.1','::1')})
                 u=self.user()
+                if self.path=='/api/admin/users':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    return self.send({'users':[dict(r) for r in c.execute('SELECT name,admin FROM users ORDER BY name')]})
                 if self.path=='/api/admin/backup-settings':
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     p=DATA/'backup-status.json'
@@ -181,7 +184,22 @@ class Handler(BaseHTTPRequestHandler):
                     for k,v in list(SESSIONS.items()):
                         if v is u: del SESSIONS[k]
                     return self.send({'ok':True},cookie='session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
-                if self.path in ('/api/admin/backup-settings','/api/admin/backup-now'):
+                if self.path=='/api/admin/password':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    name=str(d.get('name','')).strip()
+                    new_password=str(d.get('password',''))
+                    if not 8<=len(new_password)<=256: raise Problem('Use a password of 8–256 characters.')
+                    if new_password!=d.get('confirm'): raise Problem('The passwords do not match.')
+                    target=c.execute('SELECT name FROM users WHERE name=?',(name,)).fetchone()
+                    if not target: raise Problem('User not found.',404)
+                    salt=secrets.token_hex(16)
+                    c.execute('UPDATE users SET salt=?,hash=? WHERE name=?',(salt,password(new_password,salt),target['name']))
+                    c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Password changed for: '+target['name'],''))
+                    c.commit()
+                    for token,session in list(SESSIONS.items()):
+                        if session['name']==target['name']: del SESSIONS[token]
+                    return self.send({'ok':True,'signed_out':u['name']==target['name']})
+                elif self.path in ('/api/admin/backup-settings','/api/admin/backup-now'):
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     if self.path=='/api/admin/backup-settings':
                         folder=str(d.get('folder','')).strip()

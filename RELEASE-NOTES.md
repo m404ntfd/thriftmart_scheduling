@@ -1,9 +1,8 @@
-# Thrift Mart Dispatch 0.9.0
+# Thrift Mart Dispatch 0.9.1
 
-- Red store theme with blue and yellow accents.
-- TODAY, THIS WEEK and NEXT WEEK buttons; week lists run Sunday–Saturday. Date picker still opens any individual day.
-- Settings, server update and sign-out controls at the bottom.
-- Today/tomorrow/current-week pickup and delivery totals replace the welcome heading. Counts cover all vehicles, exclude canceled appointments and count each appointment by start date.
-- Wider status bars: Scheduled yellow, Confirmed blue, Completed green, Canceled red. Written status labels remain visible.
+- Appointment Open map buttons are now Navigate buttons.
+- iPhone/iPad links request Apple Maps driving directions from the current location to the appointment address.
+- Android and desktop links request Google Maps driving navigation, with browser directions when app handoff is unavailable.
+- The device/browser determines which app opens; the website cannot guarantee an arbitrary system-default maps app. Depending on permissions and location availability, the map app may show a route preview and require Start/Go.
 
-Install through the server's update controls, then reload phone/desktop browsers. Existing appointments and accounts are unchanged.
+Install with the server update button and reload the schedule on phones. No separate Remote Manager reinstall is required for this change.

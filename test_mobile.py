@@ -51,7 +51,11 @@ def run():
                 expect(page.locator('#jobs')).to_contain_text('Alex')
                 expect(page.locator('#jobs')).to_contain_text('Manager')
                 expect(page.locator('#jobs a[href^="tel:"]')).to_have_attribute('href','tel:5550100')
-                expect(page.locator('#jobs a[href^="https:"]')).to_have_attribute('href','https://www.google.com/maps/search/?api=1&query=123%20Main%20Street%0ASpringfield%2C%20IL%2062701')
+                expect(page.locator('#jobs a[href^="https:"]')).to_have_attribute('href','https://www.google.com/maps/dir/?api=1&destination=123%20Main%20Street%0ASpringfield%2C%20IL%2062701&travelmode=driving&dir_action=navigate')
+                expect(page.locator('#jobs a[href^="https:"]')).to_have_text('Navigate ↗')
+                assert page.evaluate("navigationUrl('123 Main & Oak', 'iPhone', 'iPhone', 1)") == 'https://maps.apple.com/?daddr=123%20Main%20%26%20Oak&dirflg=d'
+                assert page.evaluate("navigationUrl('123 Main', 'Macintosh', 'MacIntel', 5)").startswith('https://maps.apple.com/')
+                assert page.evaluate("navigationUrl('123 Main', 'Android', 'Linux', 1)").endswith('travelmode=driving&dir_action=navigate')
                 for width in [320,375,430,1280]:
                     page.set_viewport_size({'width':width,'height':812})
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Overflow at {width}px'

@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk,messagebox
 from client import Client
 NAME='Thrift Mart Dispatch Remote Manager'
-VERSION='0.5.0'
+VERSION='0.8.1'
 CONFIG=Path(os.environ.get('APPDATA',Path.home()))/'ThriftMartDispatchRemoteManager'/'config.json'
 
 class App:
@@ -33,11 +33,13 @@ class App:
         ttk.Button(actions,text='Refresh status',command=self.refresh).pack(side='left',padx=6)
         ttk.Button(actions,text='OneDrive backup',command=self.backup).pack(side='left')
         ttk.Button(actions,text='Restart server',command=self.restart).pack(side='left',padx=6)
-        ttk.Button(frame,text='Change a user’s password',command=self.passwords).pack(anchor='w',pady=(8,0))
+        account_actions=ttk.Frame(frame);account_actions.pack(fill='x',pady=(8,0))
+        ttk.Button(account_actions,text='Manage employees',command=self.employees).pack(side='left')
+        ttk.Button(account_actions,text='Change a user’s password',command=self.passwords).pack(side='left',padx=8)
         updates=ttk.LabelFrame(frame,text='Server updates from GitHub',padding=12);updates.pack(fill='both',expand=True,pady=16)
         row=ttk.Frame(updates);row.pack(fill='x');ttk.Button(row,text='Check for server updates',command=self.check).pack(side='left');self.install=ttk.Button(row,text='Install update & restart',command=self.install_update,state='disabled');self.install.pack(side='left',padx=8)
         self.notes=tk.Text(updates,height=7,wrap='word',font=('Segoe UI',10),state='disabled');self.notes.pack(fill='both',expand=True,pady=8)
-        ttk.Label(frame,text='Schedules, vehicles, employees and account permissions are managed in the browser.\nThe browser requires its own sign-in. Closing this app does not stop the server.',wraplength=690).pack(anchor='w')
+        ttk.Label(frame,text='Manage employee accounts here; open the browser for schedules and vehicles.\nThe browser requires its own sign-in. Closing this app does not stop the server.',wraplength=690).pack(anchor='w')
         ttk.Button(frame,text='Remote Manager downloads / updates',command=lambda:webbrowser.open('https://github.com/m404ntfd/thriftmart_scheduling/releases/latest')).pack(anchor='w',pady=(8,0))
         root.after(100,self.deliver)
     def run(self,work,done):
@@ -51,7 +53,9 @@ class App:
         try:
             ok,value,done=self.results.get_nowait();self.busy=False
             if ok:done(value)
-            else:self.status.set(value)
+            else:
+                self.status.set(value)
+                if self.root.grab_current():messagebox.showerror(NAME,value,parent=self.root.grab_current())
         except queue.Empty:pass
         self.root.after(100,self.deliver)
     def new_client(self):return Client(self.address.get())
@@ -91,6 +95,47 @@ class App:
         except ValueError as e:self.status.set(str(e))
     def backup(self):
         if self.require():self.run(lambda:self.client.request('admin/backup-now',{}),lambda r:self.status.set('Saved to server OneDrive folder (check sync): '+r['backup']))
+    def employees(self):
+        if not self.require():return
+        client=self.client
+        def show(result):
+            dialog=tk.Toplevel(self.root);dialog.title('Manage store employees');dialog.geometry('540x510');dialog.transient(self.root);dialog.grab_set()
+            frame=ttk.Frame(dialog,padding=20);frame.pack(fill='both',expand=True)
+            ttk.Label(frame,text='Store employees',font=('Segoe UI',16,'bold')).pack(anchor='w')
+            ttk.Label(frame,text='Removing an employee signs them out. Existing appointment assignments are kept.',wraplength=490).pack(anchor='w',pady=8)
+            selected=tk.StringVar()
+            combo=ttk.Combobox(frame,textvariable=selected,state='readonly');combo.pack(fill='x',pady=6)
+            def populate(result):
+                names=[u['name'] for u in result['users'] if not u['admin']]
+                combo.configure(values=names);selected.set(names[0] if names else '')
+            populate(result)
+            def complete(result):
+                if dialog.winfo_exists():populate(result);message.set('Employee list updated.')
+                self.status.set('Employee list updated.')
+            def remove():
+                if not self.require() or not selected.get():return
+                name=selected.get()
+                if not messagebox.askyesno(NAME,'Remove employee '+name+'? They will no longer be able to sign in.',parent=dialog):return
+                def work():client.request('admin/remove-user',{'name':name});return client.request('admin/users')
+                self.run(work,complete)
+            ttk.Button(frame,text='Remove selected employee',command=remove).pack(anchor='w',pady=4)
+            ttk.Separator(frame).pack(fill='x',pady=12)
+            name=tk.StringVar();password=tk.StringVar();confirm=tk.StringVar();message=tk.StringVar()
+            for label,var in [('New employee name',name),('Password (8–256 characters)',password),('Confirm password',confirm)]:
+                ttk.Label(frame,text=label).pack(anchor='w');ttk.Entry(frame,textvariable=var,show='' if var is name else '•').pack(fill='x',pady=3)
+            def add():
+                if not self.require():return
+                if not name.get().strip() or not 8<=len(password.get())<=256:message.set('Enter a name and password of 8–256 characters.');return
+                if password.get()!=confirm.get():message.set('Passwords do not match.');return
+                payload={'name':name.get().strip(),'password':password.get()}
+                def work():client.request('user',payload);return client.request('admin/users')
+                def done(result):
+                    if dialog.winfo_exists():name.set('');password.set('');confirm.set('')
+                    complete(result)
+                self.run(work,done)
+            ttk.Button(frame,text='Add employee',command=add).pack(anchor='w',pady=8)
+            ttk.Label(frame,textvariable=message,wraplength=490).pack(anchor='w')
+        self.run(lambda:client.request('admin/users'),show)
     def passwords(self):
         if not self.require():return
         def show(r):

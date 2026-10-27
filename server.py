@@ -251,6 +251,15 @@ class Handler(BaseHTTPRequestHandler):
                 elif self.path=='/api/user':
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     self.add_user(c,str(d.get('name','')).strip(),str(d.get('password','')),False)
+                elif self.path=='/api/admin/remove-user':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    target=c.execute('SELECT name,admin FROM users WHERE name=?',(str(d.get('name','')).strip(),)).fetchone()
+                    if not target: raise Problem('Employee not found.',404)
+                    if target['admin']: raise Problem('Administrator accounts cannot be removed here.',403)
+                    c.execute('DELETE FROM users WHERE name=?',(target['name'],))
+                    for token in list(SESSIONS):
+                        if SESSIONS[token]['name'].casefold()==target['name'].casefold(): del SESSIONS[token]
+                    c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Removed employee: '+target['name'],''))
                 elif self.path=='/api/vehicle':
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     name=str(d.get('name','')).strip()
@@ -266,8 +275,20 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         fields=['type','customer','phone','address','items','vehicle','start','end','staff','notes','status']
                         j={k:str(d.get(k,'')).strip() for k in fields}
+                        if any(k in d for k in ('street','city','state','zip')):
+                            for k in ('street','city','state','zip'): j[k]=str(d.get(k,'')).strip()
+                            if any(not j[k] for k in ('street','city','state','zip')): raise Problem('Enter street address, city, state and ZIP code.')
+                            j['address']=j['street']+'\n'+j['city']+', '+j['state']+' '+j['zip']
                         if any(len(v)>5000 for v in j.values()): raise Problem('A field is too long.')
-                        if any(not j[k] for k in ('customer','address','items','vehicle','start','end')): raise Problem('Complete the required fields.')
+                        if any(not j[k] for k in ('customer','phone','address','items','vehicle','start','end')): raise Problem('Complete the required fields.')
+                        if 'staffNames' in d:
+                            names=d['staffNames']
+                            if not isinstance(names,list) or len(names)>100 or any(not isinstance(n,str) or len(n)>5000 for n in names): raise Problem('Choose valid employees.')
+                            previous=json.loads(old['body']) if old else {}
+                            allowed={r['name'] for r in c.execute('SELECT name FROM users')}
+                            allowed.update(previous.get('staffNames', [previous['staff']] if previous.get('staff') else []))
+                            if any(n not in allowed for n in names): raise Problem('An employee was removed. Reopen the appointment and select current employees.')
+                            j['staffNames']=list(dict.fromkeys(names));j['staff']=', '.join(j['staffNames'])
                         if j['type'] not in ('Pickup','Delivery') or j['status'] not in ('Scheduled','Confirmed','Completed','Canceled'): raise Problem('Invalid type or status.')
                         try:
                             start=dt.datetime.strptime(j['start'],'%Y-%m-%dT%H:%M'); end=dt.datetime.strptime(j['end'],'%Y-%m-%dT%H:%M')

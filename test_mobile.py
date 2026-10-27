@@ -38,12 +38,17 @@ def run():
                 page.locator('#dayTab').click()
                 page.locator('#addDelivery').click()
                 expect(page.locator('#jobForm [name=type]')).to_have_value('Delivery')
-                for name, value in {'customer':'Phone customer','phone':'555-0100','address':'123 Main Street','items':'Sofa and two chairs'}.items():
+                for name, value in {'customer':'Phone customer','phone':'555-0100','street':'123 Main Street','city':'Springfield','state':'IL','zip':'62701','items':'Sofa and two chairs'}.items():
                     page.locator(f'#jobForm [name={name}]').fill(value)
+                page.locator('#employeeSummary').click()
+                page.locator('#employeeOptions input[value=Alex]').check()
+                page.locator('#employeeOptions input[value=Manager]').check()
                 page.locator('#save').click()
                 expect(page.locator('#jobs')).to_contain_text('Phone customer')
+                expect(page.locator('#jobs')).to_contain_text('Alex')
+                expect(page.locator('#jobs')).to_contain_text('Manager')
                 expect(page.locator('#jobs a[href^="tel:"]')).to_have_attribute('href','tel:5550100')
-                expect(page.locator('#jobs a[href^="https:"]')).to_have_attribute('href','https://www.google.com/maps/search/?api=1&query=123%20Main%20Street')
+                expect(page.locator('#jobs a[href^="https:"]')).to_have_attribute('href','https://www.google.com/maps/search/?api=1&query=123%20Main%20Street%0ASpringfield%2C%20IL%2062701')
                 for width in [320,375,430,1280]:
                     page.set_viewport_size({'width':width,'height':812})
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Overflow at {width}px'
@@ -74,7 +79,7 @@ def run():
                 page.locator('#refresh').click()
                 expect(page.locator('#offline')).to_be_visible()
                 phone.set_offline(False)
-                page.locator('#retry').click()
+                page.locator('#refresh').click()
                 expect(page.locator('#offline')).to_be_hidden()
                 page.locator('[data-edit]').click()
                 page.on('dialog', lambda dialog: dialog.accept())

@@ -52,6 +52,9 @@ def run():
                 expect(page.locator('#jobs')).to_contain_text('Alex')
                 expect(page.locator('#jobs')).to_contain_text('Manager')
                 expect(page.locator('#jobs a[href^="tel:"]')).to_have_attribute('href','tel:5550100')
+                expect(page.locator('.textCustomer')).to_have_attribute('href',page.evaluate("smsUrl(state.jobs[0])"))
+                assert 'scheduled delivery' in page.evaluate("decodeURIComponent(smsUrl(state.jobs[0]))")
+                assert page.evaluate("smsUrl({phone:'555-0100',customer:'Alex',type:'Pickup'},'iPhone','iPhone',1)").startswith('sms:5550100&body=')
                 expect(page.locator('#jobs a[href^="https:"]')).to_have_attribute('href','https://www.google.com/maps/dir/?api=1&destination=123%20Main%20Street%0ASpringfield%2C%20IL%2062701&travelmode=driving&dir_action=navigate')
                 expect(page.locator('#jobs a[href^="https:"]')).to_have_text('Navigate ↗')
                 assert page.evaluate("navigationUrl('123 Main & Oak', 'iPhone', 'iPhone', 1)") == 'https://maps.apple.com/?daddr=123%20Main%20%26%20Oak&dirflg=d'

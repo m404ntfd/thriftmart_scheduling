@@ -84,13 +84,13 @@ let statusEditing=null;
 function openStatus(id){
  statusEditing=state.jobs.find(j=>j.id===id);if(!statusEditing)return;
  $('statusCustomer').textContent=statusEditing.customer+' · Current status: '+statusEditing.status;
- $('statusChoice').value=['Scheduled','In Route / In Progress','Completed'].includes(statusEditing.status)?statusEditing.status:'Scheduled';
+ for(const option of document.querySelectorAll('[name=appointmentStatus]'))option.checked=option.value===statusEditing.status;
  $('statusError').textContent='';$('statusDialog').showModal();
 }
 $('statusClose').onclick=()=>$('statusDialog').close();
 $('statusForm').onsubmit=async e=>{
  e.preventDefault();if(!statusEditing)return;$('statusSave').disabled=true;
- try{await api('status',{id:statusEditing.id,revision:statusEditing.revision,status:$('statusChoice').value});$('statusDialog').close();toast('Status updated.');await refresh().catch(()=>toast('Status saved. Reconnect to refresh the schedule.'));}
+ try{await api('status',{id:statusEditing.id,revision:statusEditing.revision,status:new FormData(e.target).get('appointmentStatus')});$('statusDialog').close();toast('Status updated.');await refresh().catch(()=>toast('Status saved. Reconnect to refresh the schedule.'));}
  catch(err){$('statusError').textContent=err.message;}
  finally{$('statusSave').disabled=false;}
 };

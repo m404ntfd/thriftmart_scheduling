@@ -1,4 +1,4 @@
-name: Test and release Store Dispatch
+name: Test and release Thrift Mart Dispatch
 on:
   push:
     branches: [main]
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: store-dispatch-release
+  group: thrift-mart-dispatch-release
   cancel-in-progress: false
 jobs:
   test:
@@ -18,20 +18,66 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - run: python -m unittest test_server test_updater
+          python-version: '3.13'
+      - run: python -m unittest test_server test_updater test_remote
       - run: node --check static/app.js
-  release:
+  windows-installer:
     needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install pyinstaller==6.22.3
+      - run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name "Thrift Mart Dispatch Remote Manager" remote/remote_manager.py
+      - name: Verify Remote Manager and restore utility startup
+        shell: pwsh
+        run: |
+          $exe = Join-Path $pwd 'dist/Thrift Mart Dispatch Remote Manager.exe'
+          foreach ($arg in @('--smoke-test','--restore-self-test')) {
+            $p = Start-Process -FilePath $exe -ArgumentList $arg -PassThru
+            if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "Remote Manager smoke test timed out" }
+            if ($p.ExitCode -ne 0) { throw "Remote Manager smoke test failed" }
+          }
+      - run: python installer/prepare_runtime.py
+      - run: python build_release.py
+      - name: Build unified installer
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) { choco install innosetup --yes --no-progress }
+          $version = (Get-Content VERSION).Trim()
+          & $compiler "/DAppVersion=$version" installer/setup.iss
+          if ($LASTEXITCODE -ne 0) { throw "Installer build failed" }
+      - name: Test installed server and remote connection
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION).Trim()
+          $setup = Join-Path $pwd "dist/Thrift-Mart-Dispatch-Setup-v$version.exe"
+          $install = Join-Path $env:RUNNER_TEMP 'DispatchInstallTest'
+          $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TYPE=both',"/DIR=$install") -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Installer smoke test failed" }
+          python installer/smoke_install.py "$install"
+          if ($LASTEXITCODE -ne 0) { throw "Installed server test failed" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dispatch-release
+          path: |
+            dist/Thrift-Mart-Dispatch-Setup-*.exe
+            dist/Store-Dispatch-Update.zip
+          if-no-files-found: error
+  release:
+    needs: windows-installer
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/download-artifact@v4
         with:
-          python-version: '3.11'
-      - run: python build_release.py
+          name: dispatch-release
+          path: dist
       - name: Publish stable release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,4 +90,4 @@ jobs:
             echo "Release already exists; leaving published assets unchanged."
             exit 0
           fi
-          gh release create "$tag" dist/*.zip --target "$GITHUB_SHA" --title "Store Dispatch $tag" --notes-file RELEASE-NOTES.md
+          gh release create "$tag" dist/*.exe dist/Store-Dispatch-Update.zip --target "$GITHUB_SHA" --title "Thrift Mart Dispatch $tag" --notes-file RELEASE-NOTES.md

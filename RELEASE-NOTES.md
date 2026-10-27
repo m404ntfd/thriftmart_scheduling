@@ -1,11 +1,14 @@
-Store Dispatch 0.2.0 adds administrator-controlled GitHub updates.
+# Thrift Mart Dispatch 0.4.0
 
-- Settings shows the installed version, release notes, and Check for updates.
-- Install update & restart verifies the GitHub asset checksum and preserves local scheduling data.
-- Program files and database are backed up before installation.
-- A launcher restores previous program files if the updated server fails its startup check.
-- The release repository is preconfigured as m404ntfd/thriftmart_scheduling.
+One Windows installer for **Thrift Mart Dispatch Server**, **Thrift Mart Dispatch Remote Manager**, or **Both**. Required runtime included; no separate Python installation needed.
 
-First installation or upgrade from 0.1: download the Windows ZIP, extract it, keep the existing data folder, and run Start-Store-Dispatch.bat. Python 3.11+ is required. Later versions can be installed from Settings.
+- Server renamed and given a matching Start-menu shortcut.
+- Native Remote Manager connects over the trusted staff network for status, backups, restart and GitHub server updates. Schedule and settings editing opens in the browser.
+- Configurable OneDrive backup folder, hourly complete backups, manual backup button and last-result reporting. Backups include appointments, vehicles, employee accounts and settings. Keeps the latest 90 archives.
+- Start-menu restore tool for disaster recovery. Validates backups, preserves existing data before replacement, and prevents restoring while the server is running.
 
-This is a trusted-local-network pilot. Actual phone layout and on-site Windows operation still require testing. No road access or encrypted local HTTP is included. See RELEASE-GUIDE.txt for update limitations and recovery.
+Download **Thrift-Mart-Dispatch-Setup-v0.4.0.exe** on each computer and choose its role. The separate `Store-Dispatch-Update.zip` asset is for the built-in updater, not first-time installation.
+
+For existing 0.2 users: close the server, preserve `data/`, and run the installer once to add the new launcher and restore utility. Install into the existing program folder or move the old data folder to the new one while stopped.
+
+OneDrive handles cloud synchronization; the program confirms local backup creation only. Verify the OneDrive synced status before relying on off-computer recovery. Local HTTP, trusted staff network only. Unsigned installer. On-site network/phone testing remains necessary.

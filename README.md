@@ -1,29 +1,39 @@
-# ThriftMart Scheduling / Store Dispatch
+# Thrift Mart Dispatch
 
-A phone-friendly pickup and delivery schedule hosted on a Windows computer on the store's staff network.
+[Download the single Windows installer](https://github.com/m404ntfd/thriftmart_scheduling/releases/latest)
 
-[Download the latest Windows package](https://github.com/m404ntfd/thriftmart_scheduling/releases/latest)
+The installer offers **Server**, **Remote Manager**, or **Both**, with the required runtime bundled. Windows x64; no separate Python installation needed. It installs for the current Windows user.
 
-## Start
+## Store computer: Server
 
-1. Install Python 3.11 or newer, including the `py` launcher.
-2. Extract the Windows ZIP to a permanent folder.
-3. Run `Start-Store-Dispatch.bat` and leave it open.
-4. On that PC visit `http://localhost:8080`, create the administrator, and add vehicles and employees.
-5. On staff phones, use the local-network address printed in the server window.
+Choose **Thrift Mart Dispatch Server**, then open its Start-menu shortcut and keep it running. On that PC visit `http://localhost:8080` to create the first administrator. Add vehicles and employees in Settings. Phones use the staff-network address printed in the server window.
 
-Keep the computer awake. Allow access on the trusted private staff network only. Do not forward the server port to the Internet. This version uses local HTTP and is not designed for public or guest networks.
+## Other computer: Remote Manager
 
-## Updates
+Run the same installer and select **Thrift Mart Dispatch Remote Manager**. Enter the server IP/computer name and port (for example `192.168.1.50:8080`), test the connection, and sign in with a server administrator account. The native panel manages status, complete backups, restart and GitHub server updates. Schedule/account editing opens in the default browser and requires a separate browser sign-in.
 
-Administrators use **Settings → Program updates → Check for updates → Install update & restart**. GitHub is already configured. Staff should save their appointments before an update; everyone signs in again afterward.
+## OneDrive backup
 
-Upgrading from 0.1 requires one manual replacement of program files because that version has no updater. Preserve `data/`. See [RELEASE-GUIDE.txt](RELEASE-GUIDE.txt).
+On the server, sign into OneDrive. In **Settings → OneDrive backups & recovery**, enter a folder inside that computer's OneDrive (a suggested path appears if Windows provides one), enable hourly backups, save, and click **Back up to OneDrive now**.
 
-## Releases and data
+Each ZIP contains the schedule database (appointments, accounts, vehicles and audit history), GitHub updater settings and backup settings. The latest 90 archives are kept. Backups run hourly while the server is running. Failures and the last local save appear in Settings. A local save does not prove cloud sync: confirm OneDrive shows the file synced. Copying live database files into OneDrive is not used.
 
-The Actions workflow tests Windows and Linux and publishes both ZIPs on `main` when `VERSION` names an unpublished release. It also supports manual runs. Update release notes before increasing the version.
+## Recovery on a replacement PC
 
-Customer data and accounts stay in `data/`, excluded from source and release packages. Daily backups live on the same disk; copy them to a separate protected drive. Update backups are retained separately.
+1. Install the Server with the same installer and sign into OneDrive.
+2. Download a complete backup ZIP locally from OneDrive.
+3. Close the server window. Open **Restore Thrift Mart Dispatch Server** in the Start menu.
+4. Select the ZIP and confirm replacement. Current data is kept in a local safety folder first.
+5. Start the server and sign in using an account from the backup. Reconnect and enable the new PC's OneDrive folder in Settings.
 
-Run tests with `python -m unittest test_server test_updater`. See [README.txt](README.txt) for complete operating instructions and pilot limitations.
+## Existing 0.2 users
+
+Close the server and keep a separate copy of `data/`. Install the Server into the existing program folder, or copy `data/` into the new installation folder while the server is stopped. This one-time installer upgrade adds the launcher, renamed shortcuts and restore tool. Later server code updates can use Settings or Remote Manager; updating the Remote Manager/installer requires rerunning the latest unified installer.
+
+The legacy update asset remains named `Store-Dispatch-Update.zip` for compatibility. Program code updates do not overwrite customer data. The uninstaller leaves runtime-generated data and external backups in place.
+
+## Operating limits
+
+Use trusted staff networking only; local HTTP is unencrypted. Do not forward the port to the Internet. Remote Manager cannot turn on a PC or start a stopped server. Keep the server awake; optional automatic startup occurs after Windows sign-in, not before. The installer is unsigned. OneDrive must be running and signed in to sync the backup folder.
+
+Run `python -m unittest test_server test_updater test_remote` for API, update, access-control and backup/restore tests. CI also builds the Windows executable/installer, checks GUI startup and tests an installed server with bundled Python.

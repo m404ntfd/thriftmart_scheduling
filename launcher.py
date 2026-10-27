@@ -5,7 +5,7 @@ import updater
 ROOT=Path(__file__).resolve().parent
 
 def start():
-    return subprocess.Popen([sys.executable,str(ROOT/'server.py')],env={**os.environ,'DISPATCH_LAUNCHER':'1'})
+    return subprocess.Popen([sys.executable,str(ROOT/'server.py')],env={**os.environ,'DISPATCH_LAUNCHER':'1','DISPATCH_LAUNCHER_PROTOCOL':'2'})
 
 def healthy(p):
     for _ in range(40):
@@ -22,6 +22,8 @@ def main():
     try:
         while True:
             code=p.wait()
+            if code==76:
+                p=start();continue
             if code!=75:return code
             try: backup=updater.apply()
             except Exception as e:

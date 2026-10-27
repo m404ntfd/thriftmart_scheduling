@@ -1,7 +1,8 @@
-"""Store Dispatch: trusted-local-network scheduling server. Python 3.11+."""
+"""Thrift Mart Dispatch Server: trusted-local-network scheduling server. Python 3.11+."""
 import datetime as dt
 import hashlib, hmac, json, os, secrets, socket, sqlite3, threading, time
 import updater
+import tempfile, zipfile
 from contextlib import contextmanager, closing
 from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -15,6 +16,7 @@ LOCK=threading.RLock()
 SESSIONS={}
 ATTEMPTS={}
 RESTART=False
+STARTED=time.time()
 
 @contextmanager
 def connect():
@@ -39,12 +41,64 @@ def backup():
         with connect() as src, closing(sqlite3.connect(target)) as dest: src.backup(dest)
         for old in sorted(folder.glob('*.db'))[:-30]: old.unlink()
 
+def backup_config():
+    p=DATA/'backup-settings.json'
+    if p.exists(): return json.loads(p.read_text())
+    base=os.environ.get('OneDriveCommercial') or os.environ.get('OneDriveConsumer') or os.environ.get('OneDrive')
+    return {'enabled':False,'folder':str(Path(base)/'Thrift Mart Dispatch Backups') if base else ''}
+
+def complete_backup():
+    cfg=backup_config()
+    if not cfg.get('folder'): raise ValueError('Set up a OneDrive backup folder in Settings first.')
+    folder=Path(cfg['folder'])
+    if not folder.is_absolute(): raise ValueError('The backup folder must be an absolute path on the server computer.')
+    folder.mkdir(parents=True,exist_ok=True)
+    target=folder/('Thrift-Mart-Dispatch-Backup-'+dt.datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+secrets.token_hex(3)+'.zip')
+    partial=target.with_suffix('.partial')
+    try:
+        with tempfile.TemporaryDirectory(dir=DATA) as temp:
+            snapshot=Path(temp)/'schedule.db'
+            with connect() as src, closing(sqlite3.connect(snapshot)) as dst: src.backup(dst)
+            with zipfile.ZipFile(partial,'w',zipfile.ZIP_DEFLATED) as z:
+                z.write(snapshot,'schedule.db')
+                for name in ('updates.json','backup-settings.json'):
+                    if (DATA/name).exists(): z.write(DATA/name,name)
+                z.writestr('manifest.json',json.dumps({'application':'thrift-mart-dispatch','format':1,'version':updater.current(),'created':dt.datetime.now().isoformat()}))
+            os.replace(partial,target)
+        # Keep the latest 90 complete archives in the configured folder.
+        for old in sorted(folder.glob('Thrift-Mart-Dispatch-Backup-*.zip'),key=lambda p:p.stat().st_mtime)[:-90]:old.unlink()
+        (DATA/'backup-status.json').write_text(json.dumps({'file':str(target),'at':dt.datetime.now().isoformat(timespec='seconds'),'saved_at':time.time(),'error':None}))
+        return str(target)
+    except Exception as e:
+        partial.unlink(missing_ok=True)
+        previous=DATA/'backup-status.json'
+        try:status=json.loads(previous.read_text()) if previous.exists() else {}
+        except ValueError:status={}
+        status['error']=str(e);status['failed_at']=dt.datetime.now().isoformat(timespec='seconds');previous.write_text(json.dumps(status))
+        raise
+
 def background():
     while True:
         try:
-            with LOCK: backup()
+            with LOCK:
+                backup()
+                status=DATA/'backup-status.json'
+                last=json.loads(status.read_text()).get('saved_at',0) if status.exists() else 0
+                if backup_config().get('enabled') and time.time()-last>=3600: complete_backup()
         except Exception as e: print('Backup failed:',e)
-        time.sleep(3600)
+        time.sleep(60)
+
+# Keep a process-wide lock, also used by the offline restore utility.
+def hold_data_lock():
+    f=(DATA/'server.lock').open('a+b');f.seek(0);f.write(b'0');f.flush();f.seek(0)
+    try:
+        if os.name=='nt':
+            import msvcrt;msvcrt.locking(f.fileno(),msvcrt.LK_NBLCK,1)
+        else:
+            import fcntl;fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except OSError:
+        f.close();raise SystemExit('Another server or restore process is using this data folder.')
+    return f
 
 class Problem(Exception):
     def __init__(self,message,status=400): self.message=message; self.status=status
@@ -79,8 +133,15 @@ class Handler(BaseHTTPRequestHandler):
                     setup=not c.execute('SELECT 1 FROM users').fetchone()
                     try: u=self.user()
                     except Problem: u=None
-                    return self.send({'version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin']},'local':self.client_address[0] in ('127.0.0.1','::1')})
+                    return self.send({'application':'thrift-mart-dispatch','name':'Thrift Mart Dispatch Server','version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin']},'local':self.client_address[0] in ('127.0.0.1','::1')})
                 u=self.user()
+                if self.path=='/api/admin/backup-settings':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    p=DATA/'backup-status.json'
+                    return self.send({'config':backup_config(),'status':json.loads(p.read_text()) if p.exists() else None})
+                if self.path=='/api/admin/status':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    return self.send({'name':'Thrift Mart Dispatch Server','version':updater.current(),'uptime_minutes':int((time.time()-STARTED)/60),'time':dt.datetime.now().isoformat(timespec='seconds'),'jobs':c.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],'vehicles':c.execute('SELECT COUNT(*) FROM vehicles').fetchone()[0],'users':c.execute('SELECT COUNT(*) FROM users').fetchone()[0]})
                 if self.path=='/api/updates' and u['admin']:
                     last=DATA/'last-update.json'
                     return self.send({'current':updater.current(),'repository':updater.repo(),'launcher':os.environ.get('DISPATCH_LAUNCHER')=='1','last':json.loads(last.read_text()) if last.exists() else None})
@@ -120,7 +181,33 @@ class Handler(BaseHTTPRequestHandler):
                     for k,v in list(SESSIONS.items()):
                         if v is u: del SESSIONS[k]
                     return self.send({'ok':True},cookie='session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
-                if self.path.startswith('/api/update-'):
+                if self.path in ('/api/admin/backup-settings','/api/admin/backup-now'):
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if self.path=='/api/admin/backup-settings':
+                        folder=str(d.get('folder','')).strip()
+                        enabled=d.get('enabled') is True
+                        if enabled and (not folder or not Path(folder).is_absolute()): raise Problem('Enter the full OneDrive folder path on the SERVER computer.')
+                        if folder:
+                            candidate=Path(folder).resolve()
+                            if candidate==ROOT or candidate==DATA or ROOT in candidate.parents: raise Problem('Choose a OneDrive folder outside the program folder.')
+                        cfg={'folder':folder,'enabled':enabled}
+                        tmp=DATA/'backup-settings.tmp';tmp.write_text(json.dumps(cfg));os.replace(tmp,DATA/'backup-settings.json')
+                    else:
+                        try: return self.send({'ok':True,'backup':complete_backup()})
+                        except Exception as e: raise Problem('Backup failed: '+str(e))
+                elif self.path in ('/api/admin/backup','/api/admin/restart'):
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    if self.path=='/api/admin/backup':
+                        folder=DATA/'manual-backups'; folder.mkdir(exist_ok=True)
+                        target=folder/(dt.datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+secrets.token_hex(3)+'.db')
+                        with connect() as src, closing(sqlite3.connect(target)) as dst: src.backup(dst)
+                        return self.send({'ok':True,'backup':str(target)})
+                    if os.environ.get('DISPATCH_LAUNCHER_PROTOCOL')!='2': raise Problem('Install the full version 0.3.0 server package and use its launcher to enable remote restart.')
+                    RESTART=76
+                    self.send({'ok':True,'restarting':True})
+                    threading.Thread(target=self.server.shutdown,daemon=True).start()
+                    return
+                elif self.path.startswith('/api/update-'):
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     try:
                         if self.path=='/api/update-config': updater.configure(str(d.get('repository','')).strip())
@@ -183,8 +270,16 @@ class Handler(BaseHTTPRequestHandler):
         c.execute('INSERT INTO users VALUES(?,?,?,?)',(name,salt,password(p,salt),int(admin)))
 
 if __name__=='__main__':
+    if os.name=='nt':
+        import ctypes
+        kernel=ctypes.windll.kernel32
+        kernel.CreateMutexW.restype=ctypes.c_void_p
+        instance_mutex=kernel.CreateMutexW(None,False,'ThriftMartDispatchServer')
+        if kernel.GetLastError()==183: raise SystemExit('Thrift Mart Dispatch Server is already running.')
+    data_lock=hold_data_lock()
     init(); threading.Thread(target=background,daemon=True).start()
     port=int(os.environ.get('DISPATCH_PORT','8080'))
+    print('Thrift Mart Dispatch Server '+updater.current())
     print(f'On this computer: http://localhost:{port}')
     for address in sorted(set(socket.gethostbyname_ex(socket.gethostname())[2])):
         if not address.startswith('127.'): print(f'On store Wi-Fi: http://{address}:{port}')
@@ -192,4 +287,4 @@ if __name__=='__main__':
     http=ThreadingHTTPServer(('0.0.0.0',port),Handler)
     http.serve_forever()
     http.server_close()
-    if RESTART: raise SystemExit(75)
+    if RESTART: raise SystemExit(76 if RESTART==76 else 75)

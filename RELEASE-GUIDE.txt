@@ -1,60 +1,21 @@
-GITHUB RELEASES — Store Dispatch 0.2.0
+THRIFT MART DISPATCH RELEASES
 
-This package adds Settings > Program updates for administrators.
-Public GitHub repositories only in this first updater. No token is stored.
-Use a repository you own and trust: release code runs on the store computer.
+Repository: m404ntfd/thriftmart_scheduling
+Update VERSION and RELEASE-NOTES.md, then push main. GitHub Actions tests on
+Windows/Linux, builds the Remote Manager and unified installer, tests an actual
+installed server, then publishes the installer and the legacy update asset.
+Only public stable releases with a valid three-part version are installed.
+The updater verifies the GitHub SHA-256 asset digest and backs up data/code.
+A failed startup restores prior program files. Database migrations must remain
+backward compatible. Restore is an offline operation using the installer utility.
 
-FIRST INSTALL / UPGRADE FROM 0.1
-0.1 did not contain an updater, so install 0.2 manually once:
-1. Stop the server window. Back up your existing data folder.
-2. Extract this ZIP separately. Copy its program files and static folder into the
-   EXISTING application folder, replacing old program files. Keep your data folder.
-   This ZIP contains no customer database and no data folder.
-3. Start with Start-Store-Dispatch.bat (now runs launcher.py).
-4. Sign in as administrator > Settings > Program updates.
-5. Save owner/repository for your PUBLIC GitHub release repository.
-6. Check for updates. Install update & restart appears for a newer stable release.
+Keep customer data, backup archives, settings, credentials and runtime/ out of Git.
+Updater FILES remains the original seven-file allowlist for compatibility with
+0.2. Therefore launcher/remote/restore/runtime changes require the full installer.
+One installer offers Server, Remote Manager or Both. Customer data remains local.
 
-PUBLISHING FUTURE VERSIONS
-- Keep customer databases, backups, passwords and data/ OUT of GitHub.
-- Update VERSION to a strictly newer three-part version (e.g. 0.2.1).
-- Test scheduling and updater tests: python -m unittest test_server test_updater
-- Run python build_release.py.
-- Create a published stable GitHub release with matching tag, e.g. v0.2.1.
-- Upload dist/Store-Dispatch-Update.zip as a release asset, and add release notes.
-- Do not use GitHub's automatic source-code ZIP as the update asset.
-- The updater requires GitHub's SHA-256 asset digest and verifies it before staging.
-- The repository can contain source code, or just public application releases.
-- Update packages contain ONLY server.py, updater.py, VERSION, README.txt and the
-  three static UI files listed in updater.FILES. Unexpected names are rejected.
-- launcher.py is deliberately stable and not self-updated by this updater. Changes
-  to the launcher, Python version or dependencies require a manual installer update.
-- Default repository: m404ntfd/thriftmart_scheduling.
-- The release workflow tests on Windows and Linux, builds both ZIPs and publishes
-  on main when VERSION names an unpublished release. It can also be run manually in Actions.
-
-INSTALL BEHAVIOR / RECOVERY
-Updates are manual, administrator initiated; there is no unattended update.
-The configured repository and all scheduling data stay under data/.
-During installation, new writes are blocked, then the server stops cleanly.
-The launcher saves code and a consistent database copy under data/update-backups/.
-It replaces program files and starts the server. Copy failures restore old code.
-If the new server fails its startup/version check, old program files are restored
-and the server is restarted. Check Settings for the last update result.
-The startup check is NOT a comprehensive test of all features.
-Database schema migrations are not supported by this first updater; future releases
-must remain backward compatible. Automatic rollback restores program files ONLY.
-If power fails during installation, stop the server and manually restore the code
-from data/update-backups/<timestamp>, then restart. If a data restore is necessary,
-restore the database separately with the server stopped, as described in README.
-Keep update backups until the new version has been used successfully; prune old
-ones manually. They contain customer records and must be protected.
-If downloading fails, nothing is installed. Check Internet/repository/release asset.
-GitHub private repositories and expired/rate-limited API access give a check error.
-A public release endpoint is used; there are no employee credentials in GitHub.
-
-VALIDATION LIMIT
-Automated tests cover update validation, mocked release download/checksum behavior,
-copy rollback and database preservation. No live GitHub release install or Windows
-restart has been performed yet. Pilot the update on the store PC before relying
-on this workflow. Phone clients sign in again after updates.
+If power fails during code installation, stop the server and restore program
+files from data/update-backups/<timestamp>. Restore data separately if needed.
+External OneDrive backup archives include only data/settings, not installed code.
+Reinstall the program before disaster recovery. OneDrive sync status is not
+verified by the app; confirm the file is available in OneDrive independently.

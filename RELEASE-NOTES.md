@@ -1,3 +1,3 @@
-# Thrift Mart Dispatch 0.12.2
+# Thrift Mart Dispatch 0.12.3
 
-Request-only users see Requested and Cancelled choices and can cancel existing appointments through Status Update. Pending requests remain reviewable; cancellation retains appointment records and records who changed the status. Request-only users still cannot schedule, edit full appointment details, or delete appointments.
+The top-right header shows the signed-in employee name above the connection status. It clears on sign-out or session expiry and wraps on narrow phone screens.

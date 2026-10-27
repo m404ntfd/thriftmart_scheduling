@@ -31,6 +31,7 @@ def run():
                 page.locator('#vehicleForm input').fill('White truck')
                 page.locator('#vehicleForm button').click()
                 expect(page.locator('#vehicles')).to_contain_text('White truck')
+                page.get_by_role('button',name='Employees',exact=True).click()
                 page.locator('#userForm [name=name]').fill('Alex')
                 page.locator('#userForm [name=password]').fill('testpassword')
                 page.locator('#userForm button').click()
@@ -43,7 +44,7 @@ def run():
                 expect(page.locator('#jobForm [name=type]')).to_have_value('Delivery')
                 expect(page.locator('#jobForm [name=status]')).to_have_value('Scheduled')
                 for name, value in {'customer':'Phone customer','phone':'555-0100','street':'123 Main Street','city':'Springfield','state':'IL','zip':'62701','items':'Sofa and two chairs'}.items():
-                    page.locator(f'#jobForm [name={name}]').fill(value)
+                    page.locator(f'#jobForm [name={name}]').select_option(value) if name=='state' else page.locator(f'#jobForm [name={name}]').fill(value)
                 page.locator('#employeeSummary').click()
                 page.locator('#employeeOptions input[value=Alex]').check()
                 page.locator('#employeeOptions input[value=Manager]').check()

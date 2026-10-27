@@ -30,6 +30,7 @@ def connect():
 def init():
     with connect() as c:
         c.executescript('''CREATE TABLE IF NOT EXISTS users(name TEXT PRIMARY KEY COLLATE NOCASE, salt TEXT, hash TEXT, admin INTEGER);
+CREATE TABLE IF NOT EXISTS permissions(name TEXT PRIMARY KEY COLLATE NOCASE, can_create INTEGER NOT NULL DEFAULT 1, see_requests INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
@@ -123,6 +124,10 @@ class Handler(BaseHTTPRequestHandler):
         token=cookie.get('session'); token=token.value if token else ''
         session=SESSIONS.get(token)
         if not session or session['expires']<time.time(): raise Problem('Please sign in again.',401)
+        with connect() as c:
+            permission=c.execute('SELECT * FROM permissions WHERE name=?',(session['name'],)).fetchone()
+        session['can_create']=bool(session['admin'] or not permission or permission['can_create'])
+        session['see_requests']=bool(session['can_create'] and (permission['see_requests'] if permission else session['admin']))
         return session
     def do_GET(self):
         try:
@@ -135,11 +140,11 @@ class Handler(BaseHTTPRequestHandler):
                     setup=not c.execute('SELECT 1 FROM users').fetchone()
                     try: u=self.user()
                     except Problem: u=None
-                    return self.send({'application':'thrift-mart-dispatch','name':'Thrift Mart Dispatch Server','version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin']},'local':self.client_address[0] in ('127.0.0.1','::1')})
+                    return self.send({'application':'thrift-mart-dispatch','name':'Thrift Mart Dispatch Server','version':updater.current(),'setup':setup,'user':u and {'name':u['name'],'admin':u['admin'],'can_create':u['can_create'],'see_requests':u['see_requests']},'local':self.client_address[0] in ('127.0.0.1','::1')})
                 u=self.user()
                 if self.path=='/api/admin/users':
                     if not u['admin']: raise Problem('Administrator access required.',403)
-                    return self.send({'users':[dict(r) for r in c.execute('SELECT name,admin FROM users ORDER BY name')]})
+                    return self.send({'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
                 if self.path=='/api/admin/backup-settings':
                     if not u['admin']: raise Problem('Administrator access required.',403)
                     p=DATA/'backup-status.json'
@@ -151,7 +156,7 @@ class Handler(BaseHTTPRequestHandler):
                     last=DATA/'last-update.json'
                     return self.send({'current':updater.current(),'repository':updater.repo(),'launcher':os.environ.get('DISPATCH_LAUNCHER')=='1','last':json.loads(last.read_text()) if last.exists() else None})
                 if self.path=='/api/state':
-                    return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs')], 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT name,admin FROM users ORDER BY name')]})
+                    return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
                 if self.path=='/api/audit' and u['admin']:
                     return self.send([dict(r) for r in c.execute('SELECT * FROM audit ORDER BY rowid DESC LIMIT 100')])
                 raise Problem('Not found',404)
@@ -193,6 +198,14 @@ class Handler(BaseHTTPRequestHandler):
                     for k,v in list(SESSIONS.items()):
                         if v is u: del SESSIONS[k]
                     return self.send({'ok':True},cookie='session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
+                if self.path=='/api/admin/permissions':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    target=c.execute('SELECT * FROM users WHERE name=?',(str(d.get('name','')),)).fetchone()
+                    if not target: raise Problem('User not found.',404)
+                    create=bool(target['admin'] or d.get('can_create') is True)
+                    see=bool(create and d.get('see_requests') is True)
+                    c.execute('INSERT OR REPLACE INTO permissions VALUES(?,?,?)',(target['name'],int(create),int(see)))
+                    return self.send({'ok':True})
                 if self.path in ('/api/admin/password','/api/account/password'):
                     if self.path=='/api/admin/password' and not u['admin']: raise Problem('Administrator access required.',403)
                     name=u['name'] if self.path=='/api/account/password' else str(d.get('name','')).strip()
@@ -270,22 +283,24 @@ class Handler(BaseHTTPRequestHandler):
                     if not 1<=len(name)<=80: raise Problem('Enter a vehicle name.')
                     c.execute('INSERT INTO vehicles VALUES(?)',(name,))
                 elif self.path=='/api/status':
+                    if not u['can_create']: raise Problem('Scheduling permission required.',403)
                     jid=str(d.get('id',''))
                     old=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
-                    if not old or d.get('revision')!=old['revision']: raise Problem('Someone changed this appointment. Close this popup, refresh, and try again.',409)
+                    if not old or json.loads(old['body']).get('request') or d.get('revision')!=old['revision']: raise Problem('Someone changed this appointment. Close this popup, refresh, and try again.',409)
                     status=d.get('status')
                     if status not in ('Scheduled','In Route / In Progress','Completed'): raise Problem('Choose a valid status.')
                     j=json.loads(old['body'])
                     if status!='Completed':
                         for r in c.execute('SELECT * FROM jobs WHERE id!=?',(jid,)):
                             other=json.loads(r['body'])
-                            if other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
+                            if not other.get('request') and other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
                                 raise Problem('This vehicle is already booked during that time. Edit the appointment time or vehicle first.',409)
                     previous=j['status'];j['status']=status
                     j['statusUpdatedBy']=u['name'];j['statusUpdatedAt']=dt.datetime.now().astimezone().isoformat(timespec='seconds')
                     c.execute('UPDATE jobs SET revision=?,body=? WHERE id=?',(old['revision']+1,json.dumps(j),jid))
                     c.execute('INSERT INTO audit VALUES(?,?,?,?)',(dt.datetime.now().isoformat(timespec='seconds'),u['name'],'Status: '+previous+' → '+status+' · '+j['customer'],jid))
                 elif self.path in ('/api/save','/api/delete'):
+                    if d.get('id') and not u['can_create']: raise Problem('Scheduling permission required.',403)
                     jid=str(d.get('id') or secrets.token_hex(12))
                     old=c.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
                     if d.get('id') and (not old or d.get('revision')!=old['revision']): raise Problem('Someone changed this job. Close this form, refresh, and try again.',409)
@@ -315,10 +330,12 @@ class Handler(BaseHTTPRequestHandler):
                         except ValueError: raise Problem('Choose a valid date and time.')
                         if end<=start: raise Problem('End time must be after start time.')
                         if not c.execute('SELECT 1 FROM vehicles WHERE name=?',(j['vehicle'],)).fetchone(): raise Problem('Choose an existing vehicle.')
-                        if j['status'] not in ('Completed','Canceled'):
+                        pending=not u['can_create']
+                        if pending: j['status']='Scheduled';j['request']=True;j['requestedBy']=u['name']
+                        if not pending and j['status'] not in ('Completed','Canceled'):
                             for r in c.execute('SELECT * FROM jobs WHERE id!=?',(jid,)):
                                 other=json.loads(r['body'])
-                                if other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
+                                if not other.get('request') and other['vehicle']==j['vehicle'] and other['status'] not in ('Completed','Canceled') and j['start']<other['end'] and j['end']>other['start']:
                                     raise Problem('This vehicle is already booked during that time. Choose another time or vehicle.',409)
                         previous_job=json.loads(old['body']) if old else {}
                         if not old or previous_job.get('status')!=j['status']:

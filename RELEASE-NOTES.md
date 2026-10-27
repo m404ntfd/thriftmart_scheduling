@@ -1,5 +1,5 @@
-# Thrift Mart Dispatch 0.11.3
+# Thrift Mart Dispatch 0.12.0
 
-Appointment cards have a Text: On Our Way button. It opens the employee phone messaging app with the customer number and a prepared pickup/delivery message. The employee reviews and taps Send using their phone’s messaging account/number. Opening the message does not mark it sent or change appointment status; the website cannot confirm sending or delivery.
+50-state dropdown defaults to Mississippi. Confirmed removed from form choices. Administrator employee password dialogs include scheduling and request-notification permissions. Request-only employees submit pending requests; scheduling staff can review and approve them with vehicle conflict checks. Opted-in scheduling staff see a blinking Requests button below the dashboard view buttons. Existing employees retain scheduling permission.
 
-Update the server and reload phone browsers. Prefilled-message support depends on the phone and messaging app.
+Settings split into Phone Access, Backups, Updates, Vehicles, Employees, and Recent Changes tabs.

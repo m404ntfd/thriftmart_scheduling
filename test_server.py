@@ -84,6 +84,20 @@ class Tests(unittest.TestCase):
   unchanged=next(j for j in self.call('state')[1]['jobs'] if j['id']==updated['id'])
   self.assertEqual(unchanged['statusUpdatedAt'],updated['statusUpdatedAt'])
 
+  self.assertEqual(self.call('user',{'name':'Requester','password':'testpassword'})[0],200)
+  self.assertEqual(self.call('admin/permissions',{'name':'Requester','can_create':False,'see_requests':True})[0],200)
+  requester=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+  self.assertEqual(self.call('login',{'name':'Requester','password':'testpassword'},requester)[0],200)
+  self.assertEqual(self.call('save',{**job,'start':'2026-12-01T09:00','end':'2026-12-01T10:00'},requester)[0],200)
+  requested=self.call('state',client=requester)[1]
+  self.assertFalse(requested['permissions']['can_create'])
+  self.assertFalse(requested['permissions']['see_requests'])
+  self.assertEqual(len(requested['requests']),1)
+  pending=requested['requests'][0]
+  self.assertEqual(self.call('save',pending,requester)[0],403)
+  self.assertEqual(self.call('status',pending,requester)[0],403)
+  self.assertEqual(self.call('save',pending)[0],200)
+  self.assertEqual(len(self.call('state')[1]['requests']),0)
   self.assertEqual(self.call('logout',{})[0],200)
   self.assertEqual(self.call('state')[0],401)
 if __name__=='__main__':unittest.main()

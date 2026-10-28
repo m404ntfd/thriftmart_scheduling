@@ -182,6 +182,12 @@ def run():
                 page.locator('#closePhotoPreview').click()
                 expect(page.locator('#editor')).to_be_visible()
                 page.locator('#close').click()
+                page.evaluate("api('admin/notify-update',{})")
+                employee.locator('#refresh').click()
+                expect(employee.locator('#userUpdateDialog')).to_be_visible()
+                expect(employee.locator('#userUpdateNow')).to_have_text('Update now')
+                employee.locator('#userUpdateLater').click()
+                expect(employee.locator('#userUpdateDialog')).not_to_be_visible()
                 assert not errors, errors
                 browser.close()
         finally:

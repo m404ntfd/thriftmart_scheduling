@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS permissions(name TEXT PRIMARY KEY COLLATE NOCASE, can
 CREATE TABLE IF NOT EXISTS photos(job TEXT, position INTEGER, body BLOB, PRIMARY KEY(job,position));
 CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
+CREATE TABLE IF NOT EXISTS update_notices(id INTEGER PRIMARY KEY AUTOINCREMENT, version TEXT, actor TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS landing_preferences(name TEXT PRIMARY KEY COLLATE NOCASE, section TEXT);
 CREATE TABLE IF NOT EXISTS pages(id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL, actor TEXT, area TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
@@ -237,7 +238,8 @@ class Handler(BaseHTTPRequestHandler):
                             date=request.get('start','')[:10]
                             counts=pending_counts.setdefault(date,{'Pickup':0,'Delivery':0})
                             if request.get('type') in counts: counts[request['type']]+=1
-                    return self.send({'pendingCounts':pending_counts,'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
+                    notice=c.execute('SELECT * FROM update_notices ORDER BY id DESC LIMIT 1').fetchone()
+                    return self.send({'updateNotice':dict(notice) if notice else None,'pendingCounts':pending_counts,'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
                 if self.path=='/api/audit' and route_allowed(u,self.path):
                     return self.send([dict(r) for r in c.execute('SELECT * FROM audit ORDER BY rowid DESC LIMIT 100')])
                 raise Problem('Not found',404)
@@ -276,6 +278,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send({'ok':True},cookie=f'session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200')
                 u=self.user()
                 if self.path in ROUTE_PERMISSIONS and not route_allowed(u,self.path): raise Problem('Administrator or delegated permission required.',403)
+                if self.path=='/api/admin/notify-update':
+                    if not u['admin']: raise Problem('Administrator access required.',403)
+                    c.execute('INSERT INTO update_notices(version,actor,at) VALUES(?,?,?)',(updater.current(),u['name'],dt.datetime.now().astimezone().isoformat(timespec='seconds')))
+                    c.execute('DELETE FROM update_notices WHERE id NOT IN (SELECT id FROM update_notices ORDER BY id DESC LIMIT 10)')
+                    return self.send({'ok':True})
                 if self.path=='/api/account/landing':
                     section=d.get('section')
                     if section not in ('dispatch','paging'): raise Problem('Choose a section.')

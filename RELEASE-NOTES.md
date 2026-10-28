@@ -1,3 +1,3 @@
-# YFC Store Management 0.19.0
+# YFC Store Management 0.20.0
 
-New login splash page. On first sign-in, users choose a starting section, with Dispatch preselected; preference is saved to their account. Main title stays YFC Store Management, with current section below it. Dispatch uses a red header and Associate Paging a blue header. Paging choice respects permissions.
+Mobile-friendly sticky section dropdown and Choose my starting section action. Login splash and first-login choice work on phones and desktops. Administrators can notify users to refresh through Settings → Updates → Notify users to update. Notices appear on connected clients during polling or on reconnect, wait while other dialogs are open, and offer Update now (page reload) or a five-minute reminder. The notice does not install Windows/server updates; administrators install those first.

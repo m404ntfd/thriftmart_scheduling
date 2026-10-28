@@ -1,3 +1,3 @@
-# Thrift Mart Dispatch 0.17.0
+# Thrift Mart Dispatch 0.17.1
 
-Appointments default to compact pickup/delivery headers with a small status strip, corner edit icon, and a 100px-wide three-arrow expand/collapse button. Expanded cards show full details and status text. Expansion survives background refresh in the current session. Requests remain closed until the Requests button is clicked. Appointments continue sorting by start time.
+Tap anywhere on the compact appointment bar, except Edit, to expand. Tap the pickup/delivery header again to collapse. Arrow buttons continue to toggle; keyboard users can focus the header and press Enter or Space.

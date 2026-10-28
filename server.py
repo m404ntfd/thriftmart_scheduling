@@ -209,7 +209,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send({'jobs':[dict(json.loads(r['body']),id=r['id']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request') or u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name']]})
                 if self.path=='/api/state':
                     if not has_permission(u,'view_schedule'): raise Problem('Schedule access required.',403)
-                    return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
+                    pending_counts={}
+                    for row in c.execute('SELECT body FROM jobs'):
+                        request=json.loads(row['body'])
+                        if request.get('request') and request.get('status')!='Canceled':
+                            date=request.get('start','')[:10]
+                            counts=pending_counts.setdefault(date,{'Pickup':0,'Delivery':0})
+                            if request.get('type') in counts: counts[request['type']]+=1
+                    return self.send({'pendingCounts':pending_counts,'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})
                 if self.path=='/api/audit' and route_allowed(u,self.path):
                     return self.send([dict(r) for r in c.execute('SELECT * FROM audit ORDER BY rowid DESC LIMIT 100')])
                 raise Problem('Not found',404)

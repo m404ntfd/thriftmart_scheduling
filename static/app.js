@@ -54,7 +54,7 @@ const assigned=j.staffNames|| (j.staff?[j.staff]:[]);const names=[...new Set([..
 for(const name of ['end','vehicle']){form.elements[name].closest('label').hidden=!user.can_create;form.elements[name].disabled=!user.can_create;form.elements[name].required=!!user.can_create;}
 $('employeeDropdown').closest('.employeeField').hidden=!user.can_create;
 if(!user.can_create){form.elements.start.value='';form.elements.end.value='';}
-layoutRequestForm();$('editor').showModal();}
+layoutRequestForm();renderReviewPhotos();$('editor').showModal();}
 $('login').onsubmit=async e=>{e.preventDefault();try{const wasSetup=setup;await api(setup?'setup':'login',Object.fromEntries(new FormData(e.target)));e.target.reset();await boot();if(wasSetup){tab('settings');settingsSection(3);}}catch(err){$('authError').textContent=err.message;}};
 $('logout').onclick=async()=>{try{await api('logout',{});clearInterval(timer);await boot();}catch(e){toast(e.message);}};
 $('dayTab').onclick=()=>quickView(null);$('weekTab').onclick=()=>quickView(0);$('nextWeekTab').onclick=()=>quickView(7);$('settingsTab').onclick=()=>tab('settings');$('addPickup').onclick=()=>openJob(null,'Pickup');$('addDelivery').onclick=()=>openJob(null,'Delivery');$('close').onclick=()=>$('editor').close();$('date').onchange=()=>{if(!$('date').value)$('date').value=localDate(new Date());tab('day');};$('filter').onchange=render;$('statusFilter').onchange=render;$('search').oninput=render;
@@ -192,3 +192,13 @@ function renderReport(){
 $('reportFilters').onsubmit=e=>{e.preventDefault();loadReport();};
 for(const id of ['reportPeriod','reportDate','reportScope','reportType','reportVehicle','reportStaff','reportUndated'])$(id).onchange=renderReport;
 $('printReport').onclick=()=>{if(!$('reportOutput').textContent){toast('Refresh the report first.');return;}window.print();};
+
+const reviewPhotos=document.createElement('section');reviewPhotos.id='reviewPhotos';$('jobForm').querySelector('.dialogTop').after(reviewPhotos);
+function renderReviewPhotos(){
+ reviewPhotos.hidden=!editing;
+ reviewPhotos.innerHTML=editing?`<h3>Photos</h3>${editing.photoCount?'<p>Select a photo to open a larger preview.</p><div class="reviewPhotoGrid">'+Array.from({length:editing.photoCount},(_,i)=>`<button type="button" data-preview-photo="${i}" aria-label="Preview photo ${i+1}"><img src="/api/photo/${encodeURIComponent(editing.id)}/${i}" alt="Request photo ${i+1}"><span>View photo ${i+1}</span></button>`).join('')+'</div>':'<p>No photos attached.</p>'}<hr>`:'';
+}
+reviewPhotos.onclick=e=>{const button=e.target.closest('[data-preview-photo]');if(!button||!editing)return;const index=Number(button.dataset.previewPhoto);$('photoPreviewTitle').textContent=`${editing.customer} — Photo ${index+1}`;$('photoPreviewError').textContent='';$('largePhoto').src=`/api/photo/${encodeURIComponent(editing.id)}/${index}`;$('photoPreviewDialog').showModal();};
+$('largePhoto').onerror=()=>$('photoPreviewError').textContent='Unable to load this photo. Check your connection and try again.';
+$('closePhotoPreview').onclick=()=>$('photoPreviewDialog').close();
+$('photoPreviewDialog').addEventListener('close',()=>{$('largePhoto').removeAttribute('src');});

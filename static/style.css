@@ -42,3 +42,5 @@
 @media print{body{background:white;color:black}body>header,#overview,.scheduleNav,.bottomActions,#reportFilters,#reports>h1,#offline,#toast,dialog,#schedule,#settings,#auth{display:none!important}main{padding:0;max-width:none}#app,#reports,#reportOutput{display:block!important;max-width:none}#reportOutput{font-size:11pt}#reportOutput p{color:black}.reportRecord{border-radius:0;border-color:#aaa;padding:10px}.reportRecord h3{font-size:12pt}@page{margin:15mm}}
 
 .totalNumbers strong .pendingTotal{display:inline;color:#946900;font-size:inherit;font-weight:inherit}
+
+.reviewPhotoGrid{display:flex;gap:12px;flex-wrap:wrap}.reviewPhotoGrid button{padding:8px;width:145px}.reviewPhotoGrid img{width:125px;height:100px;object-fit:cover;border-radius:6px}.reviewPhotoGrid span{display:block;font-size:13px;margin-top:6px}#reviewPhotos h3{margin:0}#reviewPhotos hr{border:0;border-top:1px solid #d3dbe6;margin:20px 0}#photoPreviewDialog{max-width:1000px;width:calc(100% - 24px)}#largePhoto{display:block;max-width:100%;max-height:72dvh;object-fit:contain;margin:auto}

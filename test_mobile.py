@@ -160,6 +160,14 @@ def run():
                 page.locator('#refresh').click()
                 page.locator('#requestsButton').click()
                 expect(page.locator('#requestsList .photoLink')).to_have_count(1)
+                page.locator('[data-review]').click()
+                expect(page.locator('#reviewPhotos img')).to_have_count(1)
+                page.locator('[data-preview-photo]').click()
+                expect(page.locator('#photoPreviewDialog')).to_be_visible()
+                expect(page.locator('#largePhoto')).to_be_visible()
+                page.locator('#closePhotoPreview').click()
+                expect(page.locator('#editor')).to_be_visible()
+                page.locator('#close').click()
                 assert not errors, errors
                 browser.close()
         finally:

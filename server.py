@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
 
 PERMISSIONS={
+ 'view_reports':'Open and print schedule/request reports',
  'view_schedule':'View schedule, search and filter', 'create_appointments':'Create pickups and deliveries',
  'edit_appointments':'Edit appointment details', 'delete_appointments':'Remove appointments',
  'update_status':'Set Scheduled / In Progress / Completed', 'cancel_appointments':'Cancel existing appointments',
@@ -49,7 +50,8 @@ PERMISSIONS={
  'create_backups':'Create backups', 'check_updates':'Check server updates',
  'configure_updates':'Change update repository', 'install_updates':'Install server updates',
  'view_server':'View server status', 'restart_server':'Restart server'}
-ROUTE_PERMISSIONS={'/api/admin/users':'manage_users','/api/admin/permissions':'manage_users',
+ROUTE_PERMISSIONS={
+ 'view_reports':'Open and print schedule/request reports','/api/admin/users':'manage_users','/api/admin/permissions':'manage_users',
  '/api/user':'manage_users','/api/admin/remove-user':'manage_users','/api/admin/password':'reset_passwords',
  '/api/account/password':'change_own_password','/api/vehicle':'manage_vehicles',
  '/api/admin/backup-settings':'backup_settings','/api/admin/backup-now':'create_backups',
@@ -158,7 +160,7 @@ class Handler(BaseHTTPRequestHandler):
         defaults={key:False for key in PERMISSIONS}
         defaults.update({key:True for key in ('view_schedule','submit_requests','cancel_appointments','call_contacts','text_contacts','navigate','change_own_password')})
         for key in ('create_appointments','edit_appointments','delete_appointments','update_status','review_requests'): defaults[key]=session['can_create']
-        defaults['see_requests']=session['see_requests']
+        defaults['see_requests']=session['see_requests'];defaults['view_reports']=session['can_create']
         session['grants']=json.loads(saved['body']) if saved else defaults
         session['can_create']=has_permission(session,'create_appointments')
         session['see_requests']=bool(has_permission(session,'review_requests') and has_permission(session,'see_requests'))
@@ -202,6 +204,9 @@ class Handler(BaseHTTPRequestHandler):
                     photo=c.execute('SELECT body FROM photos WHERE job=? AND position=?',(parts[3],int(parts[4]))).fetchone()
                     if not photo: raise Problem('Not found',404)
                     return self.send(bytes(photo['body']),kind='image/jpeg')
+                if self.path=='/api/reports':
+                    if not has_permission(u,'view_reports'): raise Problem('Reports permission required.',403)
+                    return self.send({'jobs':[dict(json.loads(r['body']),id=r['id']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request') or u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name']]})
                 if self.path=='/api/state':
                     if not has_permission(u,'view_schedule'): raise Problem('Schedule access required.',403)
                     return self.send({'jobs':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request')], 'requests':[dict(json.loads(r['body']),id=r['id'],revision=r['revision']) for r in c.execute('SELECT * FROM jobs') if json.loads(r['body']).get('request') and (u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name'])], 'permissions':{'can_create':u['can_create'],'see_requests':u['see_requests'],'grants':u['grants']}, 'vehicles':[r[0] for r in c.execute('SELECT name FROM vehicles ORDER BY name')], 'users':[dict(r) for r in c.execute('SELECT users.name,admin,COALESCE(permissions.can_create,1) AS can_create,COALESCE(permissions.see_requests,admin) AS see_requests FROM users LEFT JOIN permissions ON users.name=permissions.name ORDER BY users.name')]})

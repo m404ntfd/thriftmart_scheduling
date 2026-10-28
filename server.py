@@ -51,7 +51,7 @@ PERMISSIONS={
  'edit_appointments':'Edit appointment details', 'delete_appointments':'Remove appointments',
  'update_status':'Set Scheduled / In Progress / Completed', 'cancel_appointments':'Cancel existing appointments',
  'submit_requests':'Submit pickup and delivery requests', 'review_requests':'Review and approve requests',
- 'see_requests':'Show request notification', 'call_contacts':'Show customer call button',
+ 'see_requests':'Show flashing Pending Requests button', 'call_contacts':'Show customer call button',
  'text_contacts':'Show On Our Way text button', 'navigate':'Show navigation button',
  'manage_vehicles':'Add vehicles', 'manage_users':'Add/remove employees and edit permissions',
  'reset_passwords':'Reset employee passwords/passcodes', 'change_own_password':'Change own password/passcode',
@@ -174,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
         session['grants']=json.loads(saved['body']) if saved else defaults
         for key in ('view_schedule','show_vehicle_filter','show_search'): session['grants'].setdefault(key,True)
         session['can_create']=has_permission(session,'create_appointments')
-        session['see_requests']=bool(has_permission(session,'review_requests') and has_permission(session,'see_requests'))
+        session['see_requests']=has_permission(session,'see_requests')
         return session
     def do_GET(self):
         try:

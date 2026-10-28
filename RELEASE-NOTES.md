@@ -1,3 +1,3 @@
-# Thrift Mart Dispatch 0.16.1
+# Thrift Mart Dispatch 0.16.2
 
-Restore schedule-view access for existing users once on upgrade. New users and permission lists with a missing view_schedule entry default to viewing allowed. Administrators can subsequently turn View schedule, search and filter off explicitly. Permission saving is disabled until the checklist loads. Permission denial no longer appears as a network disconnect.
+Employee permission list explicitly labels Show flashing Pending Requests button. The button follows this setting for request-only users as well as scheduling staff, independently of review/approval permission. Cancelled requests no longer trigger its flashing count. The separate dashboard pending summary is unaffected.

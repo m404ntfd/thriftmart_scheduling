@@ -116,8 +116,8 @@ $('accountClose').onclick=()=>$('accountDialog').close();
 $('accountForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{await api('account/password',Object.fromEntries(new FormData(e.target)));$('accountDialog').close();e.target.reset();await boot();toast('Login updated. Sign in with your new password or passcode.');}catch(err){$('accountError').textContent=err.message;}finally{button.disabled=false;}};
 
 function renderRequests(){
- const requests=state.requests||[];$('requestsButton').hidden=!(user.see_requests||!user.can_create)||!requests.length;$('requestsButton').textContent=`Requests (${requests.length})`;
- if(!user.see_requests&&user.can_create)$('requestsList').hidden=true;
+ const requests=(state.requests||[]).filter(j=>j.status!=='Canceled');$('requestsButton').hidden=!can('see_requests')||!requests.length;$('requestsButton').textContent=`Requests (${requests.length})`;
+ if(!can('see_requests'))$('requestsList').hidden=true;
  $('requestsList').innerHTML=requests.map(j=>`<div class="panel"><strong>${esc(j.type)} request: ${esc(j.customer)}</strong><p>${j.start?esc(j.start):'Requested date/time not specified'} · ${esc(j.address)} · ${esc(j.items)}</p><p>Submitted by ${esc(j.requestedBy)}</p>${photoLinks(j)}${user.can_create?`<button data-review="${esc(j.id)}">Review request</button>`:`<button data-request-status="${esc(j.id)}">Status Update</button>`}</div>`).join('');
  document.querySelectorAll('#jobs .editIcon').forEach(b=>b.hidden=!user.can_create);
 }

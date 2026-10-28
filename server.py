@@ -378,7 +378,7 @@ class Handler(BaseHTTPRequestHandler):
                         if any(k in d for k in ('street','city','state','zip')):
                             for k in ('street','city','state','zip'): j[k]=str(d.get(k,'')).strip()
                             if u['can_create'] and any(not j[k] for k in ('street','city','state','zip')): raise Problem('Enter street address, city, state and ZIP code.')
-                            j['address']=j['street']+'\n'+j['city']+', '+j['state']+' '+j['zip']
+                            j['address']='\n'.join(part for part in [j['street'],', '.join(part for part in [j['city'],' '.join(part for part in [j['state'],j['zip']] if part)] if part)] if part) if any(j[k] for k in ('street','city','zip')) else ''
                         if any(len(v)>5000 for v in j.values()): raise Problem('A field is too long.')
                         if any(not j[k] for k in (('customer','phone','address','items','vehicle','start','end') if u['can_create'] else ('customer',))): raise Problem('Complete the required fields.')
                         if 'staffNames' in d:

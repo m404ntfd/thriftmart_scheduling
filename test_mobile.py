@@ -144,7 +144,10 @@ def run():
                 employee.locator('#addPickup').click()
                 employee.locator('#jobForm [name=customer]').fill('Camera request')
                 image_data=page.evaluate("""() => {const c=document.createElement('canvas');c.width=40;c.height=40;c.getContext('2d').fillRect(0,0,40,40);return c.toDataURL('image/png').split(',')[1];}""")
-                employee.locator('#cameraFile').set_input_files({'name':'camera.png','mimeType':'image/png','buffer':base64.b64decode(image_data)})
+                employee.locator('#addPhotos').click()
+                with employee.expect_file_chooser() as chooser:
+                    employee.locator('#chooseCamera').click()
+                chooser.value.set_files({'name':'camera.png','mimeType':'image/png','buffer':base64.b64decode(image_data)})
                 expect(employee.locator('#photoPreviews img')).to_have_count(1)
                 expect(employee.locator('#photoMessage')).to_contain_text('1 photo(s) attached')
                 employee.locator('.bottomRequestSubmit').click()

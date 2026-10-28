@@ -152,11 +152,12 @@ function photoLinks(j){return Array.from({length:j.photoCount||0},(_,i)=>`<a cla
 const requestSection=document.createElement('section');requestSection.id='requestPhotoSection';requestSection.innerHTML='<hr><h3>Photos (optional)</h3><button id="addPhotos" type="button">Add photos</button><p>Up to 3 photos. Images are resized before uploading.</p><div id="photoPreviews"></div><hr>';
 const optionalDivider=document.createElement('div');optionalDivider.id='optionalDivider';optionalDivider.innerHTML='<hr><h3>Additional details (optional)</h3>';
 const jobGrid=$('jobForm').querySelector('.grid'),originalFields=[...jobGrid.children],originalActions=$('jobForm').querySelector('.actions');
+jobGrid.append(requestSection);requestSection.hidden=true;
 function layoutRequestForm(){
  requestPhotos=[];renderPhotoPreviews();$('addPhotos').disabled=false;
  const requestOnly=!user.can_create;
  for(const field of originalFields)jobGrid.append(field);
- requestSection.remove();optionalDivider.remove();$('jobForm').append(originalActions);
+ requestSection.hidden=!requestOnly;jobGrid.append(requestSection);optionalDivider.remove();$('jobForm').append(originalActions);
  for(const field of ['phone','street','city','state','zip','items'])$('jobForm').elements[field].required=!requestOnly;
  if(requestOnly){
  const customer=$('jobForm').elements.customer.closest('label');jobGrid.prepend(customer);customer.after(requestSection);requestSection.after(originalActions);originalActions.after(optionalDivider);

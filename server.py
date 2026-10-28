@@ -35,6 +35,14 @@ CREATE TABLE IF NOT EXISTS photos(job TEXT, position INTEGER, body BLOB, PRIMARY
 CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
+        c.execute('CREATE TABLE IF NOT EXISTS user_grants(name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT)')
+        c.execute('CREATE TABLE IF NOT EXISTS app_migrations(name TEXT PRIMARY KEY)')
+        if not c.execute("SELECT 1 FROM app_migrations WHERE name='schedule-view-default-v1'").fetchone():
+            for row in c.execute('SELECT name,body FROM user_grants').fetchall():
+                grants=json.loads(row['body']);grants['view_schedule']=True
+                c.execute('UPDATE user_grants SET body=? WHERE name=?',(json.dumps(grants),row['name']))
+            c.execute("INSERT INTO app_migrations VALUES('schedule-view-default-v1')")
+
 
 PERMISSIONS={
  'show_vehicle_filter':'Show vehicle filter on main dashboard', 'show_search':'Show search bar on main dashboard',
@@ -164,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
         for key in ('create_appointments','edit_appointments','delete_appointments','update_status','review_requests'): defaults[key]=session['can_create']
         defaults['see_requests']=session['see_requests'];defaults['view_reports']=session['can_create']
         session['grants']=json.loads(saved['body']) if saved else defaults
-        for key in ('show_vehicle_filter','show_search'): session['grants'].setdefault(key,True)
+        for key in ('view_schedule','show_vehicle_filter','show_search'): session['grants'].setdefault(key,True)
         session['can_create']=has_permission(session,'create_appointments')
         session['see_requests']=bool(has_permission(session,'review_requests') and has_permission(session,'see_requests'))
         return session
@@ -268,7 +276,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not target: raise Problem('User not found.',404)
                     if 'grants' in d:
                         if not isinstance(d['grants'],dict) or any(k not in PERMISSIONS or not isinstance(v,bool) for k,v in d['grants'].items()): raise Problem('Invalid permission list.')
-                        grants={k:bool(d['grants'].get(k,False)) for k in PERMISSIONS}
+                        grants={k:bool(d['grants'].get(k,k=='view_schedule')) for k in PERMISSIONS}
                         c.execute('INSERT OR REPLACE INTO user_grants VALUES(?,?)',(target['name'],json.dumps(grants)))
                     create=bool(target['admin'] or d.get('can_create') is True)
                     see=bool(create and d.get('see_requests') is True)

@@ -1,3 +1,3 @@
-# Thrift Mart Dispatch 0.16.0
+# Thrift Mart Dispatch 0.16.1
 
-Appointment status appears as text on the colored side bar. Employee permissions include Show vehicle filter on main dashboard and Show search bar on main dashboard; both default on for existing users. Disabled controls are hidden and cannot leave an invisible active filter. Administrators retain all controls.
+Restore schedule-view access for existing users once on upgrade. New users and permission lists with a missing view_schedule entry default to viewing allowed. Administrators can subsequently turn View schedule, search and filter off explicitly. Permission saving is disabled until the checklist loads. Permission denial no longer appears as a network disconnect.

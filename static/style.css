@@ -44,3 +44,5 @@
 .totalNumbers strong .pendingTotal{display:inline;color:#946900;font-size:inherit;font-weight:inherit}
 
 .reviewPhotoGrid{display:flex;gap:12px;flex-wrap:wrap}.reviewPhotoGrid button{padding:8px;width:145px}.reviewPhotoGrid img{width:125px;height:100px;object-fit:cover;border-radius:6px}.reviewPhotoGrid span{display:block;font-size:13px;margin-top:6px}#reviewPhotos h3{margin:0}#reviewPhotos hr{border:0;border-top:1px solid #d3dbe6;margin:20px 0}#photoPreviewDialog{max-width:1000px;width:calc(100% - 24px)}#largePhoto{display:block;max-width:100%;max-height:72dvh;object-fit:contain;margin:auto}
+
+#pendingOverview{background:#fffaf0;border:1px solid #e3cf94;border-top:5px solid #aa7a0b;border-radius:12px;padding:16px 18px;margin-top:14px}#pendingOverview h2{font-size:18px;margin:0 0 12px}.pendingBadge{display:inline-block;background:#946900;color:white;border-radius:20px;padding:3px 10px;margin-left:8px}.pendingBreakdown{display:flex;gap:28px}.pendingBreakdown strong{font-size:24px;color:#946900;margin-right:6px}#pendingOverview p{font-size:12px;margin:10px 0 0}

@@ -19,8 +19,10 @@ function renderTotals(){
  const jobs=state.jobs.filter(j=>j.status!=='Canceled'&&j.start.slice(0,10)>=from&&j.start.slice(0,10)<=to);
  const pending=(state.requests||[]).filter(j=>j.status!=='Canceled'&&j.start&&j.start.slice(0,10)>=from&&j.start.slice(0,10)<=to);
  const pendingCount=type=>state.pendingCounts?Object.entries(state.pendingCounts).filter(([date])=>date&&date>=from&&date<=to).reduce((total,[date,counts])=>total+(counts[type]||0),0):pending.filter(j=>j.type===type).length;
- return `<article class="totalCard"><h2>${label}</h2><p class="totalDates">${esc(dateLabel(from))}${from===to?'':' – '+esc(dateLabel(to))}</p><div class="totalNumbers"><span><strong>${jobs.filter(j=>j.type==='Pickup').length}<span class="pendingTotal" aria-label="pending requests"> / ${pendingCount('Pickup')}</span></strong> Pickups</span><span><strong>${jobs.filter(j=>j.type==='Delivery').length}<span class="pendingTotal" aria-label="pending requests"> / ${pendingCount('Delivery')}</span></strong> Deliveries</span></div></article>`;
+ return `<article class="totalCard"><h2>${label}</h2><p class="totalDates">${esc(dateLabel(from))}${from===to?'':' – '+esc(dateLabel(to))}</p><div class="totalNumbers"><span><strong>${jobs.filter(j=>j.type==='Pickup').length}</strong> Pickups</span><span><strong>${jobs.filter(j=>j.type==='Delivery').length}</strong> Deliveries</span></div></article>`;
  }).join('');
+ const counts=state.pendingCounts?Object.values(state.pendingCounts).reduce((a,c)=>({Pickup:a.Pickup+(c.Pickup||0),Delivery:a.Delivery+(c.Delivery||0)}),{Pickup:0,Delivery:0}):{Pickup:(state.requests||[]).filter(j=>j.status!=='Canceled'&&j.type==='Pickup').length,Delivery:(state.requests||[]).filter(j=>j.status!=='Canceled'&&j.type==='Delivery').length};
+ $('pendingOverview').innerHTML=`<h2>Pending Requests <span class="pendingBadge">${counts.Pickup+counts.Delivery}</span></h2><div class="pendingBreakdown"><span><strong>${counts.Pickup}</strong> Pickups</span><span><strong>${counts.Delivery}</strong> Deliveries</span></div><p>All dates, including requests without a date. Approved and cancelled requests excluded.</p>`;
 }
 // Use directions links rather than a location search. The OS/browser controls app handoff.
 function navigationUrl(address,ua=navigator.userAgent,platform=navigator.platform,touch=navigator.maxTouchPoints){

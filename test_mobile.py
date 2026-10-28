@@ -109,7 +109,7 @@ def run():
                 expect(page.locator('#jobs')).to_contain_text('Phone customer')
                 page.locator('#nextWeekTab').click()
                 expect(page.locator('#jobs .job')).to_have_count(0)
-                expect(page.locator('#totals .totalCard').first).to_contain_text('1 / 0 Deliveries')
+                expect(page.locator('#totals .totalCard').first).to_contain_text('1 Deliveries')
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.locator('#dayTab').click()
                 # A separately signed-in employee sees the same data and can edit it.

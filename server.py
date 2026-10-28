@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS permissions(name TEXT PRIMARY KEY COLLATE NOCASE, can
 CREATE TABLE IF NOT EXISTS photos(job TEXT, position INTEGER, body BLOB, PRIMARY KEY(job,position));
 CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
+CREATE TABLE IF NOT EXISTS landing_preferences(name TEXT PRIMARY KEY COLLATE NOCASE, section TEXT);
 CREATE TABLE IF NOT EXISTS pages(id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL, actor TEXT, area TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
         c.execute('CREATE TABLE IF NOT EXISTS user_grants(name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT)')
@@ -218,6 +219,9 @@ class Handler(BaseHTTPRequestHandler):
                     photo=c.execute('SELECT body FROM photos WHERE job=? AND position=?',(parts[3],int(parts[4]))).fetchone()
                     if not photo: raise Problem('Not found',404)
                     return self.send(bytes(photo['body']),kind='image/jpeg')
+                if self.path=='/api/account/landing':
+                    preference=c.execute('SELECT section FROM landing_preferences WHERE name=?',(u['name'],)).fetchone()
+                    return self.send({'section':preference['section'] if preference else None})
                 if self.path=='/api/paging':
                     if not has_permission(u,'send_pages') and not has_permission(u,'receive_pages'): raise Problem('Paging permission required.',403)
                     return self.send({'pages':[dict(r) for r in c.execute('SELECT * FROM pages WHERE at>? ORDER BY id',(time.time()-60,))],'latest':c.execute('SELECT COALESCE(MAX(id),0) FROM pages').fetchone()[0]})
@@ -272,6 +276,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send({'ok':True},cookie=f'session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200')
                 u=self.user()
                 if self.path in ROUTE_PERMISSIONS and not route_allowed(u,self.path): raise Problem('Administrator or delegated permission required.',403)
+                if self.path=='/api/account/landing':
+                    section=d.get('section')
+                    if section not in ('dispatch','paging'): raise Problem('Choose a section.')
+                    if section=='paging' and not has_permission(u,'send_pages') and not has_permission(u,'receive_pages'): raise Problem('Paging permission required.',403)
+                    c.execute('INSERT OR REPLACE INTO landing_preferences VALUES(?,?)',(u['name'],section))
+                    return self.send({'ok':True})
                 if self.path=='/api/paging/send':
                     area=str(d.get('area','')).strip()
                     if not 1<=len(area)<=100: raise Problem('Enter an area (up to 100 characters).')

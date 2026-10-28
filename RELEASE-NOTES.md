@@ -1,3 +1,3 @@
-# YFC Store Management 0.18.0
+# YFC Store Management 0.19.0
 
-Blue YFC Store Management title bar with dropdown to Dispatch and new Associate Paging section. Starter paging sends area announcements to signed-in browser speaker devices that explicitly enable/test audio. Separate send/receive permissions; administrators have access. Device must remain awake with browser open. Pages are not playback-confirmed; old pages are skipped and sends rate-limited.
+New login splash page. On first sign-in, users choose a starting section, with Dispatch preselected; preference is saved to their account. Main title stays YFC Store Management, with current section below it. Dispatch uses a red header and Associate Paging a blue header. Paging choice respects permissions.

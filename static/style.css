@@ -40,3 +40,5 @@
 
 #reportUndated{width:auto;min-height:0;margin-right:8px}#reports{max-width:900px}#reportError{color:#a02c2c}.reportRecord{background:white;padding:18px;border:1px solid #d5dce6;border-radius:10px;margin:12px 0;break-inside:avoid}.reportRecord h3{margin:0 0 8px}.reportRecord p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
 @media print{body{background:white;color:black}body>header,#overview,.scheduleNav,.bottomActions,#reportFilters,#reports>h1,#offline,#toast,dialog,#schedule,#settings,#auth{display:none!important}main{padding:0;max-width:none}#app,#reports,#reportOutput{display:block!important;max-width:none}#reportOutput{font-size:11pt}#reportOutput p{color:black}.reportRecord{border-radius:0;border-color:#aaa;padding:10px}.reportRecord h3{font-size:12pt}@page{margin:15mm}}
+
+.totalNumbers strong .pendingTotal{display:inline;color:#946900;font-size:inherit;font-weight:inherit}

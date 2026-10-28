@@ -17,7 +17,8 @@ function renderTotals(){
  const today=localDate(new Date()),tomorrow=shiftDate(today,1),start=weekStart(today);
  $('totals').innerHTML=[['Today',today,today],['Tomorrow',tomorrow,tomorrow],['This week',start,shiftDate(start,6)]].map(([label,from,to])=>{
  const jobs=state.jobs.filter(j=>j.status!=='Canceled'&&j.start.slice(0,10)>=from&&j.start.slice(0,10)<=to);
- return `<article class="totalCard"><h2>${label}</h2><p class="totalDates">${esc(dateLabel(from))}${from===to?'':' – '+esc(dateLabel(to))}</p><div class="totalNumbers"><span><strong>${jobs.filter(j=>j.type==='Pickup').length}</strong> Pickups</span><span><strong>${jobs.filter(j=>j.type==='Delivery').length}</strong> Deliveries</span></div></article>`;
+ const pending=(state.requests||[]).filter(j=>j.status!=='Canceled'&&j.start&&j.start.slice(0,10)>=from&&j.start.slice(0,10)<=to);
+ return `<article class="totalCard"><h2>${label}</h2><p class="totalDates">${esc(dateLabel(from))}${from===to?'':' – '+esc(dateLabel(to))}</p><div class="totalNumbers"><span><strong>${jobs.filter(j=>j.type==='Pickup').length}<span class="pendingTotal" aria-label="pending requests"> / ${pending.filter(j=>j.type==='Pickup').length}</span></strong> Pickups</span><span><strong>${jobs.filter(j=>j.type==='Delivery').length}<span class="pendingTotal" aria-label="pending requests"> / ${pending.filter(j=>j.type==='Delivery').length}</span></strong> Deliveries</span></div></article>`;
  }).join('');
 }
 // Use directions links rather than a location search. The OS/browser controls app handoff.

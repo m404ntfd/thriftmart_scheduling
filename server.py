@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS permissions(name TEXT PRIMARY KEY COLLATE NOCASE, can
 CREATE TABLE IF NOT EXISTS photos(job TEXT, position INTEGER, body BLOB, PRIMARY KEY(job,position));
 CREATE TABLE IF NOT EXISTS vehicles(name TEXT PRIMARY KEY COLLATE NOCASE);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT);
+CREATE TABLE IF NOT EXISTS pages(id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL, actor TEXT, area TEXT);
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
         c.execute('CREATE TABLE IF NOT EXISTS user_grants(name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT)')
         c.execute('CREATE TABLE IF NOT EXISTS app_migrations(name TEXT PRIMARY KEY)')
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);'''
 
 
 PERMISSIONS={
+ 'send_pages':'Page an associate to an area', 'receive_pages':'Use device as paging speaker',
  'show_vehicle_filter':'Show vehicle filter on main dashboard', 'show_search':'Show search bar on main dashboard',
  'view_reports':'Open and print schedule/request reports',
  'view_schedule':'View schedule, search and filter', 'create_appointments':'Create pickups and deliveries',
@@ -59,7 +61,8 @@ PERMISSIONS={
  'create_backups':'Create backups', 'check_updates':'Check server updates',
  'configure_updates':'Change update repository', 'install_updates':'Install server updates',
  'view_server':'View server status', 'restart_server':'Restart server'}
-ROUTE_PERMISSIONS={
+ROUTE_PERMISSIONS={'/api/paging/send':'send_pages',
+ 'send_pages':'Page an associate to an area', 'receive_pages':'Use device as paging speaker',
  'show_vehicle_filter':'Show vehicle filter on main dashboard', 'show_search':'Show search bar on main dashboard',
  'view_reports':'Open and print schedule/request reports','/api/admin/users':'manage_users','/api/admin/permissions':'manage_users',
  '/api/user':'manage_users','/api/admin/remove-user':'manage_users','/api/admin/password':'reset_passwords',
@@ -215,6 +218,9 @@ class Handler(BaseHTTPRequestHandler):
                     photo=c.execute('SELECT body FROM photos WHERE job=? AND position=?',(parts[3],int(parts[4]))).fetchone()
                     if not photo: raise Problem('Not found',404)
                     return self.send(bytes(photo['body']),kind='image/jpeg')
+                if self.path=='/api/paging':
+                    if not has_permission(u,'send_pages') and not has_permission(u,'receive_pages'): raise Problem('Paging permission required.',403)
+                    return self.send({'pages':[dict(r) for r in c.execute('SELECT * FROM pages WHERE at>? ORDER BY id',(time.time()-60,))],'latest':c.execute('SELECT COALESCE(MAX(id),0) FROM pages').fetchone()[0]})
                 if self.path=='/api/reports':
                     if not has_permission(u,'view_reports'): raise Problem('Reports permission required.',403)
                     return self.send({'jobs':[dict(json.loads(r['body']),id=r['id']) for r in c.execute('SELECT * FROM jobs') if not json.loads(r['body']).get('request') or u['can_create'] or json.loads(r['body']).get('requestedBy')==u['name']]})
@@ -266,6 +272,13 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send({'ok':True},cookie=f'session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200')
                 u=self.user()
                 if self.path in ROUTE_PERMISSIONS and not route_allowed(u,self.path): raise Problem('Administrator or delegated permission required.',403)
+                if self.path=='/api/paging/send':
+                    area=str(d.get('area','')).strip()
+                    if not 1<=len(area)<=100: raise Problem('Enter an area (up to 100 characters).')
+                    if c.execute('SELECT 1 FROM pages WHERE actor=? AND at>?',(u['name'],time.time()-10)).fetchone(): raise Problem('Please wait ten seconds before paging again.',429)
+                    c.execute('INSERT INTO pages(at,actor,area) VALUES(?,?,?)',(time.time(),u['name'],area))
+                    c.execute('DELETE FROM pages WHERE at<?',(time.time()-86400,))
+                    return self.send({'ok':True})
                 if self.path=='/api/logout':
                     for k,v in list(SESSIONS.items()):
                         if v is u: del SESSIONS[k]

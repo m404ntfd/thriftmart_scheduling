@@ -122,6 +122,26 @@ def run():
                 page.on('dialog', lambda dialog: dialog.accept())
                 page.locator('#remove').click()
                 expect(page.locator('#jobs .job')).to_have_count(0)
+                # Exercise the actual camera-file path, blob decoding, resizing, submission and retrieval.
+                import base64
+                await_result = page.evaluate("api('admin/permissions',{name:'Alex',can_create:false,see_requests:false})")
+                employee.reload()
+                employee.locator('#addPickup').click()
+                employee.locator('#jobForm [name=customer]').fill('Camera request')
+                image_data=page.evaluate("""() => {const c=document.createElement('canvas');c.width=40;c.height=40;c.getContext('2d').fillRect(0,0,40,40);return c.toDataURL('image/png').split(',')[1];}""")
+                employee.locator('#cameraFile').set_input_files({'name':'camera.png','mimeType':'image/png','buffer':base64.b64decode(image_data)})
+                expect(employee.locator('#photoPreviews img')).to_have_count(1)
+                expect(employee.locator('#photoMessage')).to_contain_text('1 photo(s) attached')
+                employee.locator('.bottomRequestSubmit').click()
+                expect(employee.locator('#editor')).not_to_be_visible()
+                requests=page.evaluate("api('state')")['requests']
+                request=next(r for r in requests if r['customer']=='Camera request')
+                assert request['photoCount']==1
+                response=page.request.get(base+'/api/photo/'+request['id']+'/0')
+                assert response.status==200 and response.body().startswith(b'\xff\xd8\xff')
+                page.locator('#refresh').click()
+                page.locator('#requestsButton').click()
+                expect(page.locator('#requestsList .photoLink')).to_have_count(1)
                 assert not errors, errors
                 browser.close()
         finally:

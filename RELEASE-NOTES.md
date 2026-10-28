@@ -1,3 +1,3 @@
-# Thrift Mart Dispatch 0.16.2
+# Thrift Mart Dispatch 0.17.0
 
-Employee permission list explicitly labels Show flashing Pending Requests button. The button follows this setting for request-only users as well as scheduling staff, independently of review/approval permission. Cancelled requests no longer trigger its flashing count. The separate dashboard pending summary is unaffected.
+Appointments default to compact pickup/delivery headers with a small status strip, corner edit icon, and a 100px-wide three-arrow expand/collapse button. Expanded cards show full details and status text. Expansion survives background refresh in the current session. Requests remain closed until the Requests button is clicked. Appointments continue sorting by start time.

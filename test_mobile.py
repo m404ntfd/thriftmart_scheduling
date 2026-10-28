@@ -55,6 +55,8 @@ def run():
                 expect(page.locator('#jobs .typeDelivery')).to_contain_text('DELIVERY')
                 expect(page.locator('#jobs')).to_contain_text('Alex')
                 expect(page.locator('#jobs')).to_contain_text('Manager')
+                expect(page.locator('#jobs .job')).to_have_class(__import__('re').compile('collapsed'))
+                page.locator('[data-expand]').click()
                 expect(page.locator('#jobs a[href^="tel:"]')).to_have_attribute('href','tel:5550100')
                 expect(page.locator('.textCustomer')).to_have_attribute('href',page.evaluate("smsUrl(state.jobs[0])"))
                 assert 'scheduled delivery' in page.evaluate("decodeURIComponent(smsUrl(state.jobs[0]))")

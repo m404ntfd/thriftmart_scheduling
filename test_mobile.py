@@ -113,7 +113,7 @@ def run():
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.locator('#dayTab').click()
                 # A separately signed-in employee sees the same data and can edit it.
-                other = browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
+                other = browser.new_context(user_agent='Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36',viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
                 employee = other.new_page()
                 employee.goto(base + '/mobile')
                 employee.locator('#login [name=name]').fill('Alex')

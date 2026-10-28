@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, revision INTEGER, body TEXT
 CREATE TABLE IF NOT EXISTS audit(at TEXT, actor TEXT, action TEXT, job TEXT);''')
 
 PERMISSIONS={
+ 'show_vehicle_filter':'Show vehicle filter on main dashboard', 'show_search':'Show search bar on main dashboard',
  'view_reports':'Open and print schedule/request reports',
  'view_schedule':'View schedule, search and filter', 'create_appointments':'Create pickups and deliveries',
  'edit_appointments':'Edit appointment details', 'delete_appointments':'Remove appointments',
@@ -51,6 +52,7 @@ PERMISSIONS={
  'configure_updates':'Change update repository', 'install_updates':'Install server updates',
  'view_server':'View server status', 'restart_server':'Restart server'}
 ROUTE_PERMISSIONS={
+ 'show_vehicle_filter':'Show vehicle filter on main dashboard', 'show_search':'Show search bar on main dashboard',
  'view_reports':'Open and print schedule/request reports','/api/admin/users':'manage_users','/api/admin/permissions':'manage_users',
  '/api/user':'manage_users','/api/admin/remove-user':'manage_users','/api/admin/password':'reset_passwords',
  '/api/account/password':'change_own_password','/api/vehicle':'manage_vehicles',
@@ -162,6 +164,7 @@ class Handler(BaseHTTPRequestHandler):
         for key in ('create_appointments','edit_appointments','delete_appointments','update_status','review_requests'): defaults[key]=session['can_create']
         defaults['see_requests']=session['see_requests'];defaults['view_reports']=session['can_create']
         session['grants']=json.loads(saved['body']) if saved else defaults
+        for key in ('show_vehicle_filter','show_search'): session['grants'].setdefault(key,True)
         session['can_create']=has_permission(session,'create_appointments')
         session['see_requests']=bool(has_permission(session,'review_requests') and has_permission(session,'see_requests'))
         return session

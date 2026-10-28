@@ -197,6 +197,27 @@ function renderReport(){
 }
 $('reportFilters').onsubmit=e=>{e.preventDefault();loadReport();};
 for(const id of ['reportPeriod','reportDate','reportScope','reportType','reportVehicle','reportStaff','reportUndated'])$(id).onchange=renderReport;
+let emailReportUrl=null;
+function reportEmailDraft(text,subject){
+ const full='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(text);
+ const attachment=full.length>1800;
+ return {attachment,href:attachment?'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent('Please see the attached Thrift Mart Dispatch report.'):full};
+}
+$('emailReport').onclick=()=>{
+ if(!can('view_reports'))return;
+ if(!$('reportOutput').textContent.trim()){toast('Refresh the report first.');return;}
+ const text=$('reportOutput').innerText,subject='Thrift Mart Dispatch report — '+$('reportDate').value;
+ const draft=reportEmailDraft(text,subject);
+ $('emailReportPreview').value=text;
+ $('emailReportHelp').textContent=draft.attachment?'This report is too long for an email link. First download the report, then open your email app and attach the downloaded file.':'Open your email app to create a message containing the report below. You can also download it as an attachment.';
+ $('openReportEmail').href=draft.href;
+ if(emailReportUrl)URL.revokeObjectURL(emailReportUrl);
+ emailReportUrl=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));
+ $('downloadEmailReport').href=emailReportUrl;
+ $('emailReportDialog').showModal();
+};
+$('closeEmailReport').onclick=()=>$('emailReportDialog').close();
+$('emailReportDialog').addEventListener('close',()=>{if(emailReportUrl)URL.revokeObjectURL(emailReportUrl);emailReportUrl=null;$('emailReportPreview').value='';$('downloadEmailReport').removeAttribute('href');$('openReportEmail').removeAttribute('href');});
 $('printReport').onclick=()=>{if(!$('reportOutput').textContent){toast('Refresh the report first.');return;}window.print();};
 
 const reviewPhotos=document.createElement('section');reviewPhotos.id='reviewPhotos';$('jobForm').querySelector('.dialogTop').after(reviewPhotos);

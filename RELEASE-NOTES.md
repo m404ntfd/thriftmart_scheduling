@@ -1,3 +1,3 @@
-# YFC Store Management 0.20.0
+# YFC Store Management 0.20.1
 
-Mobile-friendly sticky section dropdown and Choose my starting section action. Login splash and first-login choice work on phones and desktops. Administrators can notify users to refresh through Settings → Updates → Notify users to update. Notices appear on connected clients during polling or on reconnect, wait while other dialogs are open, and offer Update now (page reload) or a five-minute reminder. The notice does not install Windows/server updates; administrators install those first.
+Reports now include an Email report button beside Refresh and Print. Preview and email the current filtered report through your device’s email app. Longer reports can be downloaded as a complete text file and attached manually. Sending requires an email app or email service; no server email configuration is needed.
